@@ -28,7 +28,7 @@ fs = 28
 H = 8
 
 # The genome annotations
-datapath = '/home/vadim/ebio_vadim/HIV_time_of_infection/Frequency_Data/'  
+datapath = './Frequency_Data/'
 head = ['name', 'x1', 'x2', 'width', 'ri']
 annot = []
 with open(datapath + 'annotations.txt', 'r') as fhandle:
@@ -36,12 +36,12 @@ with open(datapath + 'annotations.txt', 'r') as fhandle:
         l = [x if j ==0 else int(x) for j, x in enumerate(line.split())]
         annot.append({name: l[j] for j, name in enumerate(head)})
 coords = {anno['name']: (anno['x1'], anno['x2']) for anno in annot}
-feas = ['gag', 'pol', 'env'] 
+feas = ['gag', 'pol', 'env']
 
 
 #loading frequency data
 data = EDI.load_patient_data(filepath = datapath)
-        
+
 def leg_byname(funcname):
     legs = ['ambiguous sites', 'diversity', 'site entropy']
     heads = ['ambiguous_above', 'hamming_above', 'entropy_above']
@@ -52,7 +52,7 @@ def region(j0jL):
         return coords[j0jL]
     else:
         j0jL
-    
+
 def plot_traj_xt(j0jL, measure, cutoff, filename):
     '''
     plot diversity time trajectories by codon position
@@ -63,14 +63,14 @@ def plot_traj_xt(j0jL, measure, cutoff, filename):
     filename: file path to save the figure
     '''
 #    j0, jL = region(j0jL)
-    def ax_traj_xt(ax, rf = None): 
+    def ax_traj_xt(ax, rf = None):
         CUT = EDI.window_cutoff(data, measure, region(j0jL), cutoff, rf = rf)
         ttk, xxk, jjk, Npat = CUT.realdata(Tmin, Tmax, fcr)
         for jpat in xrange(Npat):
             jj = np.where(jjk == jpat)
             ax.plot(ttk[jj], xxk[jj], '--' + marks1[jpat], c=cols[jpat], markersize = 12)
         return ax
-        
+
     fig, ax = plt.subplots(1, 3, figsize = (3*H, 2*H), sharey = True)
     for j in xrange(3):
         ax_traj_xt(ax[j], rf = j)
@@ -88,7 +88,7 @@ def ttest_region(func_name, j0jL, cutoff, method,\
                  return_slope = False, return_all = False):
     CUT = EDI.window_cutoff(data, func_name, region(j0jL), cutoff)
     ttk, xxk, jjk, Npat = CUT.realdata(Tmin, Tmax, fcr)
-    
+
     ttk_est = np.zeros(ttk.shape)
     dtdx_t0 = np.zeros((Npat, 2))
     for jpat in xrange(Npat):
@@ -108,7 +108,7 @@ def plot_median_new(j0jL, func_names, cutoffs, filehead):
     '''
     plotting absolute error as as a function of the low frequency cutoff
     for several diversity measures
-    
+
     Input arguments:
     j0jL: tuple of initial and final positions of the genome window
     func_names: list of diversity measures
@@ -124,9 +124,9 @@ def plot_median_new(j0jL, func_names, cutoffs, filehead):
         ttk_abserr = np.zeros((2, Ncut))
         for jcut, cut in enumerate(cutoffs[jf,:]):
             ttk_est, ttk, dtdx_t0[:,:,jf,jcut] = ttest_region(name, j0jL,
-                                        cut, method, return_slope = True) 
+                                        cut, method, return_slope = True)
             dttk = ttk_est - ttk
-            ttk_abserr[:, jcut] = np.array([np.median(dttk), np.mean(np.abs(dttk))])    
+            ttk_abserr[:, jcut] = np.array([np.median(dttk), np.mean(np.abs(dttk))])
         err.append(ttk_abserr[1,:])
 
     fig, ax = plt.subplots(1, 1,figsize = (H, H))
@@ -139,7 +139,7 @@ def plot_median_new(j0jL, func_names, cutoffs, filehead):
     ax.set_xticks(np.arange(0.,.5,.1))
     plt.savefig(filehead + 'cut_abserr.pdf')
     plt.close()
-    
+
     fig, ax = plt.subplots(1, 1,figsize = (1.2*H, H))
     dtdx_med = np.median(dtdx_t0, axis = 0)
     for jf, name in enumerate(func_names):
@@ -151,7 +151,7 @@ def plot_median_new(j0jL, func_names, cutoffs, filehead):
     ax.set_xticks(np.arange(0.,.5,.1))
     plt.savefig(filehead + 'cut_s.pdf')
     plt.close()
-    
+
     fig, ax = plt.subplots(1, 1,figsize = (1.2*H, H))
     dtdx_med = np.median(dtdx_t0, axis = 0)
     for jf, name in enumerate(func_names):
@@ -168,7 +168,7 @@ def plot_median_new(j0jL, func_names, cutoffs, filehead):
 def plot_tEDI_vs_tDI_bypat(j0jL, func_name, cutoff, filehead):
     '''
     Plotting estimated versus actual date of infection
-    
+
     Input arguments:
     j0jL: tuple of initial and final positions of the genome window
     func_name: diversity measure
@@ -176,16 +176,16 @@ def plot_tEDI_vs_tDI_bypat(j0jL, func_name, cutoff, filehead):
     filename: file path to save the figures
     '''
     ttk_est, ttk, xxk, jjk, dtdx_t0 =\
-    ttest_region(func_name, j0jL, cutoff, method, return_all = True) 
-        
+    ttest_region(func_name, j0jL, cutoff, method, return_all = True)
+
     # scatter-plot EDI vs DI
-    fig, ax = plt.subplots(1, 1, figsize = (H, H)) 
+    fig, ax = plt.subplots(1, 1, figsize = (H, H))
     for j in xrange(np.max(jjk) + 1):
         jj = np.where(jjk == j)
         ax.scatter(ttk[jj], ttk_est[jj], color = cols[j], marker = marks1[j],\
         s = 40, label = data['pat_names'][j])
     ax.plot(np.sort(ttk), np.sort(ttk), '--k')
-    
+
     ax = draw_ellipse(ax, xy = (5.3, 1.6), ab = (2.7,.7), psi = .25*np.pi,\
     lw = 1, c = 'r')
     ax = draw_ellipse(ax, xy = (1., 3.35), ab = (1.,.4), psi = .25*np.pi,\
@@ -197,9 +197,9 @@ def plot_tEDI_vs_tDI_bypat(j0jL, func_name, cutoff, filehead):
     ax.axis('tight')
     plt.savefig(filehead + 'ETI_vs_TI.pdf')
     plt.close()
-    
-    fig, ax = plt.subplots(1, 1, figsize = (H, H)) 
-    dttk = np.abs(ttk_est - ttk)            
+
+    fig, ax = plt.subplots(1, 1, figsize = (H, H))
+    dttk = np.abs(ttk_est - ttk)
     dtkave, dtkvar, tk = moving_average(ttk, dttk)
     ax.plot(tk, dtkave)
     ax.set_xlabel('TI [years]', fontsize = fs)
@@ -208,7 +208,7 @@ def plot_tEDI_vs_tDI_bypat(j0jL, func_name, cutoff, filehead):
     ax.axis('tight')
     plt.savefig(filehead + 'error_vs_TI.pdf')
     plt.close()
-    
+
     fig, ax = plt.subplots(1, 1, figsize = (H, H))
     ax.hist(ttk_est - ttk, alpha = 0.5)
     ax.set_xlabel(r'ETI - TI, [years]', fontsize = fs)
@@ -237,13 +237,13 @@ def moving_average(ttk, dttk, n = 25):
 
 def ROC_curves(func_name, j0jL, cutoff, Trecent, filename):
     '''recent infection
-    
+
     Plotting receiver operating characteristic (ROC curve)
     Input arguments:
     j0jL: tuple of initial and final positions of the genome window
     func_name: diversity measure
     cutoff: low frequency cutoff value
-    Trecent: time threshold definig 
+    Trecent: time threshold definig
     filename: file path to save the figure
     '''
     fig, ax = plt.subplots(1, 1, figsize = (H, H))
@@ -266,10 +266,10 @@ def ROC_curve(func_name, j0jL, cutoff, tcr, ax = None):
         FP = np.count_nonzero((ttk >= tcr)*(xxk < xcr))
         FN = np.count_nonzero((ttk < tcr)*(xxk >= xcr))
         TN = np.count_nonzero((ttk >= tcr)*(xxk >= xcr))
-        return np.array([[TP, FN], [FP, TN]])    
+        return np.array([[TP, FN], [FP, TN]])
     CUT = EDI.window_cutoff(data, func_name, region(j0jL), cutoff)
     ttk, xxk, jjk, Npat = CUT.realdata(Tmin, Tmax, fcr)
-    
+
     xxcr = np.sort(np.unique(xxk))
     M = np.array([contable(ttk, xxk, tcr, xcr) for xcr in xxcr])
     MM = M/np.sum(M, axis=2, keepdims = True)
@@ -279,9 +279,9 @@ def ROC_curve(func_name, j0jL, cutoff, tcr, ax = None):
 
 def maketable_slopes(j0jL, func_name, cutoffs, methods, filehead):
     '''
-    Save table of slopes, intercepts and errors for different values of 
+    Save table of slopes, intercepts and errors for different values of
     low frequency cutoff
-    
+
     Input arguments:
     j0jL: tuple of initial and final positions of the genome window
     func_names: list of diversity measures
@@ -297,16 +297,16 @@ def maketable_slopes(j0jL, func_name, cutoffs, methods, filehead):
         ttk_abserr = np.zeros((2, Ncut))
         for jcut, cut in enumerate(cutoffs):
             ttk_est, ttk, dtdx_t0[:,:,jmeth,jcut] = ttest_region(func_name,\
-            j0jL, cut, meth, return_slope = True) 
+            j0jL, cut, meth, return_slope = True)
             dttk = ttk_est - ttk
             ttk_median[:,jcut] = np.array([np.percentile(dttk, 25),\
             np.percentile(dttk, 50), np.percentile(dttk, 75)])
             ttk_abserr[:, jcut] = np.array([np.median(dttk), np.mean(np.abs(dttk))])
-            
+
         err.append(ttk_abserr[1,:])
-    
-    dtdx_med = np.median(dtdx_t0, axis = 0)    
-            
+
+    dtdx_med = np.median(dtdx_t0, axis = 0)
+
     with open(filehead + 'cut_st0.txt', 'w') as filehandle:
         filehandle.write('\t' + '\t\t\t\t\t\t'.join(methods) + '\n')
         head = 'x_c'
@@ -332,7 +332,7 @@ def maketable_slopes(j0jL, func_name, cutoffs, methods, filehead):
 def plot_slope_bootstrap(j0jL, func_name, cutoff, filename, nboot = 10**3):
     '''
     Bootstrap plot of slope and intercept values
-    
+
     Input arguments:
     j0jL: tuple of initial and final positions of the genome window
     func_name: diversity measure
@@ -353,16 +353,16 @@ def plot_slope_bootstrap(j0jL, func_name, cutoff, filename, nboot = 10**3):
     fig, ax = plt.subplots(1, 2, figsize = (2*H, H), sharey = True)
     ax[0].hist(dtdx_t0[:,0], alpha = 0.5)
     ax[1].hist(dtdx_t0[:,1], alpha = 0.5)
-        
+
     ax[0].set_xlabel('slope [years]', fontsize = fs)
     ax[0].set_ylabel(method, fontsize = fs)
     ax[0].tick_params(labelsize = .8*fs)
-    
+
     ax[1].set_xlabel('intercept', fontsize = fs)
     ax[1].tick_params(labelsize = .8*fs)
     plt.savefig(filename)
     plt.close()
-    
+
     fig, ax = plt.subplots(1, 1, figsize = (1.2*H, H))
     Hist, xedges, yedges, cax = ax.hist2d(dtdx_t0[:,0], dtdx_t0[:,1],\
     cmap = plt.cm.Blues)
@@ -377,9 +377,9 @@ def plot_slope_bootstrap(j0jL, func_name, cutoff, filename, nboot = 10**3):
 
 def plot_corrcoeff0(j0jL, measures, cutoffs, filename):
     '''
-    Plot pearson correlation coefficients between times 
+    Plot pearson correlation coefficients between times
     and corresponding diversity values
-    
+
     Input arguments:
     j0jL: tuple of initial and final positions of the genome window
     measures: diversity measures
@@ -390,7 +390,7 @@ def plot_corrcoeff0(j0jL, measures, cutoffs, filename):
     fig, ax = plt.subplots(1, len(measures), figsize = (H*len(measures), 2*H),\
     sharey = True)
     titls = [leg_byname(name) for name in measures]
-        
+
     for j, measure in enumerate(measures):
         rxt = np.zeros((cutoffs.shape[0], len(data['pat_names'])))
         for jcut, cut in enumerate(cutoffs):
@@ -414,13 +414,13 @@ def plot_corrcoeff0(j0jL, measures, cutoffs, filename):
     plt.savefig(filename)
     plt.close()
     return None
-        
+
 #Sliding window plot functions
 def plot_sliding_ws(func_name, cutoff, wws, filename, lstep = 10):
     '''
-    Plot absolute arror as a function of position in the genome 
+    Plot absolute arror as a function of position in the genome
     (also plots coverage of valid time points)
-    
+
     func_name: diversity measure
     cutoff: low-frequency cutoff
     wws: genome widnow sizes to use
@@ -431,22 +431,22 @@ def plot_sliding_ws(func_name, cutoff, wws, filename, lstep = 10):
     cov_sites_all = []
     cov_points_all = []
     ll_all = []
-    
+
     f = 4; hsp = 0.
     plt.figure(10, figsize = (2*H, f/(f-1)*H + hsp))
     ax0 = plt.subplot2grid((f, 1), (0,0), rowspan = f-1)
     ax1 = plt.subplot2grid((f, 1), (f-1,0), rowspan = 1, sharex = ax0)
     ax = [ax0, ax1]
-    for jws, ws in enumerate(wws): 
+    for jws, ws in enumerate(wws):
         ttk_est, dtdx_t0, ttk, xxk, NNk, jjk =\
         ttest_sliding_window(func_name, cutoff, ws, lstep = lstep)
-        
+
         L = ttk_est.shape[1]*lstep
         ll = range(ws//2, L + (ws+1)//2, lstep)
         tabserr = np.mean(np.abs(ttk_est - ttk[:, np.newaxis]), axis = 0)
         ax[0].plot(ll, tabserr, color = cols[jws], label = 'ws = {}'.format(ws))
         ax[0].set_ylabel('ETI - TI, mean abs. error [years]', fontsize = fs)
-            
+
         dtdx_all.append(dtdx_t0)
         cov_sites_all.append(NNk.mean(axis = 0)/ws)
         cov_points_all.append(np.mean(1 - xxk.mask, axis = 0))
@@ -455,15 +455,15 @@ def plot_sliding_ws(func_name, cutoff, wws, filename, lstep = 10):
     handles, labels = ax[0].get_legend_handles_labels()
     ax[0].legend(fontsize = 0.8*fs, loc = 0)
     ax[0].tick_params(labelsize = 0.8*fs)
-    
+
     draw_genome(annot, ax[1], fs = 18, pad = 1)
     ax[1].set_xlim((0, L + ws))
     ax[1].set_axis_off()
-    
+
 ##    coord = np.array(anno.loc[anno['name'].isin(feas), ['x1', 'x2']])
-#    coord = np.array([[anno['x1'], anno['x2']] for anno in annot 
+#    coord = np.array([[anno['x1'], anno['x2']] for anno in annot
 #    if anno['name'] in feas])
-    
+
     for jgene, gene in enumerate(feas):
         tk_est, tk = ttest_region(func_name, gene, cutoff, 'LAD')
         dtk = tk_est - tk
@@ -476,11 +476,11 @@ def plot_sliding_ws(func_name, cutoff, wws, filename, lstep = 10):
                 color='k',
                 fontsize = .8*fs,
                 ha='center')
-    
+
     plt.subplots_adjust(hspace = hsp)
     plt.savefig(filename)
     plt.close()
-    
+
     #plotting coverage
     plt.figure(10, figsize = (2*H, f/(f-1)*H + hsp))
     ax0 = plt.subplot2grid((f, 1), (0,0), rowspan = f-1)
@@ -490,14 +490,14 @@ def plot_sliding_ws(func_name, cutoff, wws, filename, lstep = 10):
     ax0.set_ylabel('coverage, sites %', fontsize = fs)
     ax0.legend(fontsize = 0.8*fs, loc = 0)
     ax0.tick_params(labelsize = .8*fs)
-    
+
     draw_genome(annot, ax1, fs = 18, pad = 1)
     ax1.set_xlim((0, L + ws))
     ax1.set_axis_off()
     plt.subplots_adjust(hspace = hsp)
     plt.savefig(filename[:-4] + '_cov_sites.pdf')
     plt.close(10)
-    
+
     plt.figure(10, figsize = (2*H, f/(f-1)*H + hsp))
     ax0 = plt.subplot2grid((f, 1), (0,0), rowspan = f-1)
     ax1 = plt.subplot2grid((f, 1), (f-1,0), rowspan = 1, sharex = ax0)
@@ -506,14 +506,14 @@ def plot_sliding_ws(func_name, cutoff, wws, filename, lstep = 10):
     ax0.set_ylabel('coverage, sdatapoints %', fontsize = fs)
     ax0.legend(fontsize = 0.8*fs, loc = 0)
     ax0.tick_params(labelsize = .8*fs)
-    
+
     draw_genome(annot, ax1, fs = 18, pad = 1)
     ax1.set_xlim((0, L + ws))
     ax1.set_axis_off()
     plt.subplots_adjust(hspace = hsp)
     plt.savefig(filename[:-4] + '_cov_points.pdf')
     plt.close(10)
-        
+
     return None
 
 def ttest_sliding_window(func_name, cutoff, ws, lstep = 10, Ncr = 5):
@@ -547,7 +547,7 @@ def ma_quantiles(ttk, prob = None):
     else:
         tquant = mstats.mquantiles(ttk, prob, axis = 0)
     return tquant
-    
+
 def draw_genome(anno_elements,
                 ax=None,
                 rows=4,
