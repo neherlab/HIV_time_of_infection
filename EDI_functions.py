@@ -31,26 +31,35 @@ def load_patient_data(patient_names = 'all',
         for pat_name in patient_names:
             PAT = Patient.load(pat_name)
             tt = PAT.times(unit = timescale)
+            vload = PAT.n_templates_viral_load
+            dilutions = PAT.n_templates_dilutions
             freqs_raw = PAT.get_allele_frequency_trajectories('genomewide', error_rate=err)[:,:q,:]
             map_to_ref = PAT.map_to_external_reference('genomewide')
             freqs = np.ma.zeros((tt.shape[0], q, Lref)); freqs.mask = True
             freqs[:,:,map_to_ref[:,0]] = freqs_raw[:,:,map_to_ref[:,1]]
-            data_all[pat_name] = (tt, freqs)
+            data_all[pat_name] = (tt, freqs, vload, dilutions)
             if filepath is not None:
                 np.save(filepath + '{}_data.npy'.format(pat_name), freqs.data)
                 np.save(filepath + '{}_mask.npy'.format(pat_name), freqs.mask)
                 np.save(filepath + '{}_tt.npy'.format(pat_name), tt) 
+                np.save(filepath + '{}_viral_load.npy'.format(pat_name), vload)
+                np.save(filepath + '{}_dilutions.npy'.format(pat_name), dilutions.data)
+                np.save(filepath + '{}_dilutions_mask.npy'.format(pat_name), dilutions.mask)
         data_all['Lref'] = freqs.shape[2]
         data_all['pat_names'] = patient_names
         
     elif filepath is not None:
         data_all = {}
         for pat_name in patient_names:
+            tt = np.load(filepath + '{}_tt.npy'.format(pat_name))
             data = np.load(filepath + '{}_data.npy'.format(pat_name))
             mask = np.load(filepath + '{}_mask.npy'.format(pat_name))
-            tt = np.load(filepath + '{}_tt.npy'.format(pat_name))
             freqs = np.ma.masked_array(data, mask = mask) 
-            data_all[pat_name] = (tt, freqs)
+            vload = np.load(filepath + '{}_viral_load.npy'.format(pat_name))
+            dilutions = np.load(filepath + '{}_dilutions.npy'.format(pat_name))
+            dilutions_mask = np.load(filepath + '{}_dilutions_mask.npy'.format(pat_name))
+            dilutions = np.ma.masked_array(dilutions, mask = dilutions_mask)
+            data_all[pat_name] = (tt, freqs, vload, dilutions)
         data_all['Lref'] = freqs.shape[2]
         data_all['pat_names'] = patient_names
     else:
@@ -116,12 +125,16 @@ class window_cutoff(object):
             self.ws = jL - j0 
         
         self.tt_all = {}
+        self.vload_all = {}
+        self.dilutions_all = {}
         self.xka_all = {}
         self.yka_all = {}
         self.yka_var_all = {}
         self.Nka_all = {}
         for jpat, pat_name in enumerate(self.pat_names):
             self.tt_all[pat_name] = data[pat_name][0]
+            self.vload_all[pat_name] = data[pat_name][2]
+            self.dilutions_all[pat_name] = data[pat_name][3]
             if rf is None:
                 freqs = data[pat_name][1][:,:,j0:jL]
             else:
@@ -148,6 +161,8 @@ class window_cutoff(object):
         Collecting patients into a single dataset
         '''
         self.ttk = np.ma.concatenate([self.tt_all[p] for p in self.pat_names])
+        self.vload = np.ma.concatenate([self.vload_all[p] for p in self.pat_names])
+        self.dilutions = np.ma.concatenate([self.dilutions_all[p] for p in self.pat_names])
         self.xxk = np.ma.concatenate([self.yka_all[p] for p in self.pat_names])
         self.vvark = np.ma.concatenate([self.yka_var_all[p] for p in self.pat_names])
         self.NNk = np.ma.concatenate([self.Nka_all[p] for p in self.pat_names])
@@ -155,10 +170,17 @@ class window_cutoff(object):
         for jp, p in enumerate(self.pat_names)])
         return None
     
-    def realdata(self, Tmin, Tmax, fcr = 0.):
-        idx = np.where((1-self.xxk.mask)*(self.ttk > Tmin)*(self.ttk < Tmax)*\
-        (self.NNk/self.ws >= fcr))[0]
-        return self.ttk[idx], self.xxk[idx], self.jjk[idx], len(self.pat_names)
+    def realdata(self, Tmin, Tmax, fcr = 0., vload_min = None, dilutions_min = None):
+        if dilutions_min is not None:
+            idx = np.where((1-self.xxk.mask)*(self.ttk > Tmin)*(self.ttk < Tmax)*\
+            (self.NNk/self.ws >= fcr)*(self.dilutions > dilutions_min))[0]
+        elif vload_min is not None:
+            idx = np.where((1-self.xxk.mask)*(self.ttk > Tmin)*(self.ttk < Tmax)*\
+            (self.NNk/self.ws >= fcr)*(self.vload > vload_min))[0]
+        else:
+            idx = np.where((1-self.xxk.mask)*(self.ttk > Tmin)*(self.ttk < Tmax)*\
+            (self.NNk/self.ws >= fcr))[0]
+        return self.ttk[idx], self.xxk[idx], self.jjk[idx]
 
 
 class sliding_window(object):

@@ -17,6 +17,8 @@ sns.set_style('darkgrid')
 h = 10**(-8)
 fcr = 0.5
 Tmin = 0; Tmax = 9
+vload_min = None
+dilutions_min = 100
 method = 'LAD'
 
 cols = sns.color_palette(n_colors=6)*2
@@ -40,7 +42,13 @@ feas = ['gag', 'pol', 'env']
 
 
 #loading frequency data
-data = EDI.load_patient_data(filepath = datapath)
+pnames = 'all'
+#pnames = ['p{}'.format(j+1) for j in xrange(11)]
+#pnames.remove('p6')
+#pnames.remove('p3')
+#pnames.remove('p10')
+data = EDI.load_patient_data(patient_names = pnames, filepath = datapath)
+Npat = len(data['pat_names'])
 
 def leg_byname(funcname):
     legs = ['ambiguous sites', 'diversity', 'site entropy']
@@ -53,6 +61,20 @@ def region(j0jL):
     else:
         j0jL
 
+def plot_templates(filename):
+    fig, ax = plt.subplots(2,1, figsize = (2*H, 2*H))
+    for jpat, pat_name in enumerate(data['pat_names']):
+        tt, freqs, vload, dilutions = data[pat_name]
+        ax[0].semilogy(tt, vload, '--' + marks1[jpat], c=cols[jpat], markersize = 12)
+        ax[1].semilogy(tt, dilutions, '--' + marks1[jpat], c=cols[jpat], markersize = 12)
+    ax[0].set_ylabel('viral load', fontsize = fs)
+    ax[1].set_ylabel('dilutions', fontsize = fs)
+    ax[1].set_ylim(10**0, 10**5)
+    ax[0].legend(data['pat_names'], fontsize = 0.8*fs, loc = 0)
+    plt.savefig(filename)
+    plt.close()
+    return None
+    
 def plot_traj_xt(j0jL, measure, cutoff, filename):
     '''
     plot diversity time trajectories by codon position
@@ -65,7 +87,8 @@ def plot_traj_xt(j0jL, measure, cutoff, filename):
 #    j0, jL = region(j0jL)
     def ax_traj_xt(ax, rf = None):
         CUT = EDI.window_cutoff(data, measure, region(j0jL), cutoff, rf = rf)
-        ttk, xxk, jjk, Npat = CUT.realdata(Tmin, Tmax, fcr)
+        ttk, xxk, jjk = CUT.realdata(Tmin, Tmax, fcr = fcr, vload_min = vload_min,
+                                     dilutions_min = dilutions_min)
         for jpat in xrange(Npat):
             jj = np.where(jjk == jpat)
             ax.plot(ttk[jj], xxk[jj], '--' + marks1[jpat], c=cols[jpat], markersize = 12)
@@ -87,7 +110,8 @@ def plot_traj_xt(j0jL, measure, cutoff, filename):
 def ttest_region(func_name, j0jL, cutoff, method,\
                  return_slope = False, return_all = False):
     CUT = EDI.window_cutoff(data, func_name, region(j0jL), cutoff)
-    ttk, xxk, jjk, Npat = CUT.realdata(Tmin, Tmax, fcr)
+    ttk, xxk, jjk = CUT.realdata(Tmin, Tmax,  fcr = fcr, vload_min = vload_min,
+                                 dilutions_min = dilutions_min)
 
     ttk_est = np.zeros(ttk.shape)
     dtdx_t0 = np.zeros((Npat, 2))
@@ -268,7 +292,8 @@ def ROC_curve(func_name, j0jL, cutoff, tcr, ax = None):
         TN = np.count_nonzero((ttk >= tcr)*(xxk >= xcr))
         return np.array([[TP, FN], [FP, TN]])
     CUT = EDI.window_cutoff(data, func_name, region(j0jL), cutoff)
-    ttk, xxk, jjk, Npat = CUT.realdata(Tmin, Tmax, fcr)
+    ttk, xxk, jjk = CUT.realdata(Tmin, Tmax,  fcr = fcr, vload_min = vload_min,
+                                 dilutions_min = dilutions_min)
 
     xxcr = np.sort(np.unique(xxk))
     M = np.array([contable(ttk, xxk, tcr, xcr) for xcr in xxcr])
@@ -341,7 +366,8 @@ def plot_slope_bootstrap(j0jL, func_name, cutoff, filename, nboot = 10**3):
     nboot: number of bootstrap realizations
     '''
     CUT = EDI.window_cutoff(data, func_name, region(j0jL), cutoff)
-    ttk, xxk, jjk, Npat = CUT.realdata(Tmin, Tmax, fcr)
+    ttk, xxk, jjk = CUT.realdata(Tmin, Tmax,  fcr = fcr, vload_min = vload_min,
+                                 dilutions_min = dilutions_min)
     dtdx_t0 = np.zeros((nboot, 2))
 
     jjboot = np.random.randint(0, high = Npat, size = (nboot, Npat))
@@ -395,7 +421,8 @@ def plot_corrcoeff0(j0jL, measures, cutoffs, filename):
         rxt = np.zeros((cutoffs.shape[0], len(data['pat_names'])))
         for jcut, cut in enumerate(cutoffs):
             CUT = EDI.window_cutoff(data, measure, region(j0jL), cut)
-            ttk_all, xxk_all, jjk, Npat = CUT.realdata(Tmin, Tmax, fcr)
+            ttk_all, xxk_all, jjk = CUT.realdata(Tmin, Tmax,  fcr = fcr,\
+            vload_min = vload_min, dilutions_min = dilutions_min)
             for jpat in xrange(Npat):
                 idx = np.where(jjk == jpat)
                 ttk = ttk_all[idx]
@@ -516,7 +543,11 @@ def plot_sliding_ws(func_name, cutoff, wws, filename, lstep = 10):
 
     return None
 
-def ttest_sliding_window(func_name, cutoff, ws, lstep = 10, Ncr = 5):
+def ttest_sliding_window(func_name, 
+                         cutoff, 
+                         ws, 
+                         lstep = 10, 
+                         Ncr = 5):
     SW= EDI.sliding_window(data, func_name, ws, cutoff)
     idx = np.where((SW.ttk > Tmin)*(SW.ttk < Tmax))[0]
     ttk = SW.ttk[idx]
