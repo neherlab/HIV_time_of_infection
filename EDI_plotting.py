@@ -18,7 +18,7 @@ h = 10**(-8)
 fcr = 0.5
 Tmin = 0; Tmax = 9
 vload_min = None
-dilutions_min = 100
+dilutions_min = None
 method = 'LAD'
 
 cols = sns.color_palette(n_colors=6)*2
@@ -140,22 +140,25 @@ def plot_median_new(j0jL, func_names, cutoffs, filehead):
     filehead: common path for the output files
     '''
     err = []
-    if cutoffs.ndim == 1:
+    if len(cutoffs) == 1:
         cutoffs = np.tile(cutoffs, (len(func_names),1))
-    Ncut = cutoffs.shape[1]
-    dtdx_t0 = np.zeros((len(data['pat_names']),2, len(func_names), Ncut))
+#    dtdx_t0 = np.zeros((len(data['pat_names']),2, len(func_names), Ncut))
+    dtdx_t0 = []
     for jf, name in enumerate(func_names):
+        Ncut = len(cutoffs[jf])
+        dtdx = np.zeros((len(data['pat_names']),2, Ncut))
         ttk_abserr = np.zeros((2, Ncut))
-        for jcut, cut in enumerate(cutoffs[jf,:]):
-            ttk_est, ttk, dtdx_t0[:,:,jf,jcut] = ttest_region(name, j0jL,
+        for jcut, cut in enumerate(cutoffs[jf]):
+            ttk_est, ttk, dtdx[:,:,jcut] = ttest_region(name, j0jL,
                                         cut, method, return_slope = True)
             dttk = ttk_est - ttk
             ttk_abserr[:, jcut] = np.array([np.median(dttk), np.mean(np.abs(dttk))])
         err.append(ttk_abserr[1,:])
-
+        dtdx_t0.append(dtdx)
+        
     fig, ax = plt.subplots(1, 1,figsize = (H, H))
     for jf, name in enumerate(func_names):
-        ax.plot(cutoffs[jf,:], err[jf], '-', color = cols[jf])
+        ax.plot(cutoffs[jf], err[jf], '-', color = cols[jf])
     ax.set_ylabel('ETI - TI, mean abs. error, [years]', fontsize = fs)
     ax.legend([leg_byname(name) for name in func_names], loc = 0, fontsize = 0.8*fs)
     ax.set_xlabel(r'$x_{c}$', fontsize = fs)
@@ -165,9 +168,9 @@ def plot_median_new(j0jL, func_names, cutoffs, filehead):
     plt.close()
 
     fig, ax = plt.subplots(1, 1,figsize = (1.2*H, H))
-    dtdx_med = np.median(dtdx_t0, axis = 0)
+    dtdx_med = [np.median(dtdx, axis = 0) for dtdx in dtdx_t0]
     for jf, name in enumerate(func_names):
-        ax.plot(cutoffs[jf,:], dtdx_med[0,jf,:])
+        ax.plot(cutoffs[jf], dtdx_med[jf][0,:])
     ax.legend([leg_byname(name) for name in func_names], loc = 0, fontsize = 0.8*fs)
     ax.set_ylabel('slope [years/diversity]', fontsize = fs)
     ax.set_xlabel(r'$x_{c}$', fontsize = fs)
@@ -177,9 +180,9 @@ def plot_median_new(j0jL, func_names, cutoffs, filehead):
     plt.close()
 
     fig, ax = plt.subplots(1, 1,figsize = (1.2*H, H))
-    dtdx_med = np.median(dtdx_t0, axis = 0)
+#    dtdx_med = np.median(dtdx_t0, axis = 0)
     for jf, name in enumerate(func_names):
-        ax.plot(cutoffs[jf,:], dtdx_med[1,jf,:])
+        ax.plot(cutoffs[jf], dtdx_med[jf][1,:])
     ax.legend([leg_byname(name) for name in func_names], loc = 0, fontsize = 0.8*fs)
     ax.set_ylabel('intercept [years]', fontsize = fs)
     ax.set_xlabel(r'$x_{c}$', fontsize = fs)
@@ -241,6 +244,59 @@ def plot_tEDI_vs_tDI_bypat(j0jL, func_name, cutoff, filehead):
     plt.close()
     return ttk_est, ttk
 
+def plot_tEDI_vs_tDI_diff(j0jL, func_name, cutoffs, filehead):
+    '''
+    Plotting estimated versus actual date of infection
+
+    Input arguments:
+    j0jL: tuple of initial and final positions of the genome window
+    func_name: diversity measure
+    cutoff: low frequency cutoff value
+    filename: file path to save the figures
+    '''
+    fig, ax = plt.subplots(1, 1, figsize = (H, H))
+    for jcut, cutoff in enumerate(cutoffs):
+        ttk_est, ttk, xxk, jjk, dtdx_t0 =\
+        ttest_region(func_name, j0jL, cutoff, method, return_all = True)
+        ax.scatter(ttk, ttk_est, color = cols[jcut], label = 'xc = {:.3g}'.format(cutoff))
+    ax.plot(np.sort(ttk), np.sort(ttk), '--k')
+    ax.set_xlabel('TI [years]', fontsize = fs)
+    ax.set_ylabel('ETI [years]', fontsize = fs)
+    ax.legend(fontsize = 0.8*fs, loc = 2)
+    ax.tick_params(labelsize = .8*fs)
+    ax.axis('tight')
+    plt.savefig(filehead + 'ETI_vs_TI_diff.pdf')
+    plt.close()
+    
+    fig, ax = plt.subplots(1, 1, figsize = (H, H))
+    for jcut, cutoff in enumerate(cutoffs):
+        ttk_est, ttk, xxk, jjk, dtdx_t0 =\
+        ttest_region(func_name, j0jL, cutoff, method, return_all = True)
+        dttk = np.abs(ttk_est - ttk)
+        dtkave, dtkvar, tk = moving_average(ttk, dttk)
+        ax.plot(tk, dtkave, label = 'xc = {:.3g}'.format(cutoff))
+    ax.set_xlabel('TI [years]', fontsize = fs)
+    ax.set_ylabel(r'$|$ETI - TI$|$, [years]', fontsize = fs)
+    ax.legend(fontsize = 0.8*fs, loc = 2)
+    ax.tick_params(labelsize = .8*fs)
+    ax.axis('tight')
+    plt.savefig(filehead + 'error_vs_TI_cutoffs.pdf')
+    plt.close()
+    
+    fig, ax = plt.subplots(1, 1, figsize = (H, H))
+    for jcut, cutoff in enumerate(cutoffs):
+        ttk_est, ttk, xxk, jjk, dtdx_t0 =\
+        ttest_region(func_name, j0jL, cutoff, method, return_all = True)
+        ax.scatter(ttk, xxk, color = cols[jcut], label = 'xc = {:.3g}'.format(cutoff))
+    ax.set_xlabel('TI [years]', fontsize = fs)
+    ax.set_ylabel('diversity', fontsize = fs)
+    ax.legend(fontsize = 0.8*fs, loc = 2)
+    ax.tick_params(labelsize = .8*fs)
+    ax.axis('tight')
+    plt.savefig(filehead + 'D_vs_TI_diff.pdf')
+    plt.close()
+    return ttk_est, ttk
+    
 def draw_ellipse(ax, xy = (0.,0), ab = (1.,1.), psi = 0., n = 50, lw = 1., c = 'b'):
     pphi = np.linspace(0., 2*np.pi, num = n)
     xxyy = np.array([ab[0]*np.cos(pphi), ab[1]*np.sin(pphi)])
