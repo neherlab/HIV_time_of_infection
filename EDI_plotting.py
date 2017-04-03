@@ -127,14 +127,13 @@ def plot_median_new(j0jL, func_names, cutoffs, filehead):
     fig, ax = plt.subplots(1, 1,figsize = (H, H))
     for jf, name in enumerate(func_names):
         ttk_abserr, dtdx = cutoff_dependence(j0jL, name, cutoffs[jf], ax = ax, 
-                                             rf = rframe, style = ('-', cols[jf]))
+                                             rf = None, style = ('-', cols[jf]))
         err.append(ttk_abserr[1,:])
         dtdx_t0.append(dtdx)
     if rframe is not None:
         for jf, name in enumerate(func_names):
             ttk_abserr, dtdx = cutoff_dependence(j0jL, name, cutoffs[jf],\
-            ax = ax, rf = None, style = ('--', cols[jf]))
-#        ax.plot(cutoffs[jf], err[jf], '-', color = cols[jf])
+            ax = ax, rf = rframe, style = ('--', cols[jf]))
     ax.set_ylabel('ETI - TI, mean abs. error, [years]', fontsize = fs)
     ax.legend([leg_byname(name) for name in func_names], loc = 0, fontsize = 0.8*fs)
     ax.set_xlabel(r'$x_{c}$', fontsize = fs)
@@ -273,7 +272,6 @@ def ROC_curves(func_name, j0jL, cutoff, Trecent, filehead):
     for cut in cutoff:
         MM, AUC = ROC_curve(func_name, j0jL, cut, Trecent, ax)
 #        AUC = np.sum(np.diff(MM[:,1,0])*MM[1:,0,0])
-        print Trecent, AUC, MM.shape
         legs.append(r'$x_c$' +'= {}, AUC = {:.2g}'.format(cut, AUC))
     ax.set_xlabel('1-specificity', fontsize = fs)
     ax.set_ylabel('sensitivity', fontsize = fs)
@@ -331,7 +329,6 @@ def AUC_curve(func_name, j0jL, cutoff, ax = None):
     M = np.array([[contable(ttk, xxk, tcr, xcr) for xcr in xxcr] for tcr in ttcr])
     MM = M/np.sum(M, axis=3, keepdims = True)
     AUC = np.sum(np.diff(MM[:,:,1,0], axis=1)*MM[:,1:,0,0], axis=1)
-    print M.shape, ttcr.shape, xxcr.shape
     if ax is not None:
         ax.plot(ttcr, AUC)
     return ttcr, AUC
