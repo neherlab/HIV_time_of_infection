@@ -333,7 +333,7 @@ def AUC_curve(func_name, j0jL, cutoff, ax = None):
         ax.plot(ttcr, AUC)
     return ttcr, AUC
     
-def maketable_slopes(j0jL, func_name, cutoffs, methods, filehead):
+def maketable_slopes(j0jL, func_name, cutoffs, methods, filename, rf = rframe):
     '''
     Save table of slopes, intercepts and errors for different values of
     low frequency cutoff
@@ -343,7 +343,7 @@ def maketable_slopes(j0jL, func_name, cutoffs, methods, filehead):
     func_names: list of diversity measures
     cutoffs: array of the cutoff values
     methods: fitting methods
-    filehead: common path for the output files
+    filename: common path for the output files
     '''
     err = []
     Ncut = cutoffs.shape[0]
@@ -353,7 +353,7 @@ def maketable_slopes(j0jL, func_name, cutoffs, methods, filehead):
         ttk_abserr = np.zeros((2, Ncut))
         for jcut, cut in enumerate(cutoffs):
             ttk_est, ttk, dtdx_t0[:,:,jmeth,jcut] = ttest_region(func_name,\
-            j0jL, cut, meth, return_slope = True)
+            j0jL, cut, meth, return_slope = True, rf = rf)
             dttk = ttk_est - ttk
             ttk_median[:,jcut] = np.array([np.percentile(dttk, 25),\
             np.percentile(dttk, 50), np.percentile(dttk, 75)])
@@ -363,7 +363,7 @@ def maketable_slopes(j0jL, func_name, cutoffs, methods, filehead):
 
     dtdx_med = np.median(dtdx_t0, axis = 0)
 
-    with open(filehead + 'cut_st0.txt', 'w') as filehandle:
+    with open(filename, 'w') as filehandle:
         filehandle.write('\t' + '\t\t\t\t\t\t'.join(methods) + '\n')
         head = 'x_c'
         for jmeth, meth in enumerate(methods):
