@@ -20,6 +20,7 @@ Tmin = 0; Tmax = 9
 vload_min = None
 dilutions_min = None
 method = 'LAD'
+rframe = 2 #reference frame; set to None to use all sites
 
 cols = sns.color_palette(n_colors=6)*2
 #marks = ['o', 'v', '^', '<', '>', '1', '2', '3', '4', 's', 'p', '*', 'h', '+', 'x', 'd']
@@ -42,16 +43,11 @@ feas = ['gag', 'pol', 'env']
 
 
 #loading frequency data
-pnames = 'all'
-#pnames = ['p{}'.format(j+1) for j in xrange(11)]
-#pnames.remove('p6')
-#pnames.remove('p3')
-#pnames.remove('p10')
-data = EDI.load_patient_data(patient_names = pnames, filepath = datapath)
+data = EDI.load_patient_data(patient_names = 'all', filepath = datapath)
 Npat = len(data['pat_names'])
 
 def leg_byname(funcname):
-    legs = ['ambiguous sites', 'diversity', 'site entropy']
+    legs = ['polymorphic sites', 'diversity', 'site entropy']
     heads = ['ambiguous_above', 'hamming_above', 'entropy_above']
     return legs[heads.index(funcname)]
 
@@ -60,20 +56,6 @@ def region(j0jL):
         return coords[j0jL]
     else:
         j0jL
-
-def plot_templates(filename):
-    fig, ax = plt.subplots(2,1, figsize = (2*H, 2*H))
-    for jpat, pat_name in enumerate(data['pat_names']):
-        tt, freqs, vload, dilutions = data[pat_name]
-        ax[0].semilogy(tt, vload, '--' + marks1[jpat], c=cols[jpat], markersize = 12)
-        ax[1].semilogy(tt, dilutions, '--' + marks1[jpat], c=cols[jpat], markersize = 12)
-    ax[0].set_ylabel('viral load', fontsize = fs)
-    ax[1].set_ylabel('dilutions', fontsize = fs)
-    ax[1].set_ylim(10**0, 10**5)
-    ax[0].legend(data['pat_names'], fontsize = 0.8*fs, loc = 0)
-    plt.savefig(filename)
-    plt.close()
-    return None
     
 def plot_traj_xt(j0jL, measure, cutoff, filename):
     '''
@@ -108,8 +90,8 @@ def plot_traj_xt(j0jL, measure, cutoff, filename):
     return None
 
 def ttest_region(func_name, j0jL, cutoff, method,\
-                 return_slope = False, return_all = False):
-    CUT = EDI.window_cutoff(data, func_name, region(j0jL), cutoff)
+                 return_slope = False, return_all = False, rf = rframe):
+    CUT = EDI.window_cutoff(data, func_name, region(j0jL), cutoff, rf = rf)
     ttk, xxk, jjk = CUT.realdata(Tmin, Tmax,  fcr = fcr, vload_min = vload_min,
                                  dilutions_min = dilutions_min)
 
@@ -140,25 +122,19 @@ def plot_median_new(j0jL, func_names, cutoffs, filehead):
     filehead: common path for the output files
     '''
     err = []
-    if len(cutoffs) == 1:
-        cutoffs = np.tile(cutoffs, (len(func_names),1))
-#    dtdx_t0 = np.zeros((len(data['pat_names']),2, len(func_names), Ncut))
     dtdx_t0 = []
-    for jf, name in enumerate(func_names):
-        Ncut = len(cutoffs[jf])
-        dtdx = np.zeros((len(data['pat_names']),2, Ncut))
-        ttk_abserr = np.zeros((2, Ncut))
-        for jcut, cut in enumerate(cutoffs[jf]):
-            ttk_est, ttk, dtdx[:,:,jcut] = ttest_region(name, j0jL,
-                                        cut, method, return_slope = True)
-            dttk = ttk_est - ttk
-            ttk_abserr[:, jcut] = np.array([np.median(dttk), np.mean(np.abs(dttk))])
-        err.append(ttk_abserr[1,:])
-        dtdx_t0.append(dtdx)
         
     fig, ax = plt.subplots(1, 1,figsize = (H, H))
     for jf, name in enumerate(func_names):
-        ax.plot(cutoffs[jf], err[jf], '-', color = cols[jf])
+        ttk_abserr, dtdx = cutoff_dependence(j0jL, name, cutoffs[jf], ax = ax, 
+                                             rf = rframe, style = ('-', cols[jf]))
+        err.append(ttk_abserr[1,:])
+        dtdx_t0.append(dtdx)
+    if rframe is not None:
+        for jf, name in enumerate(func_names):
+            ttk_abserr, dtdx = cutoff_dependence(j0jL, name, cutoffs[jf],\
+            ax = ax, rf = None, style = ('--', cols[jf]))
+#        ax.plot(cutoffs[jf], err[jf], '-', color = cols[jf])
     ax.set_ylabel('ETI - TI, mean abs. error, [years]', fontsize = fs)
     ax.legend([leg_byname(name) for name in func_names], loc = 0, fontsize = 0.8*fs)
     ax.set_xlabel(r'$x_{c}$', fontsize = fs)
@@ -192,6 +168,21 @@ def plot_median_new(j0jL, func_names, cutoffs, filehead):
     plt.close()
     return None
 
+def cutoff_dependence(j0jL, func_name, cuts, ax = None, style = None, rf = rframe):
+    Ncut = len(cuts)
+    dtdx = np.zeros((len(data['pat_names']), 2, Ncut))
+    ttk_abserr = np.zeros((2, Ncut))
+    for jcut, cut in enumerate(cuts):
+        ttk_est, ttk, dtdx[:,:,jcut] = ttest_region(func_name, j0jL,\
+        cut, method, return_slope = True, rf = rf)
+        dttk = ttk_est - ttk
+        ttk_abserr[:, jcut] = np.array([np.median(dttk), np.mean(np.abs(dttk))])
+    if ax is not None and style is not None:
+        ax.plot(cuts, ttk_abserr[1,:], linestyle = style[0], color = style[1])
+    elif ax is not None:
+        ax.plot(cuts, ttk_abserr[1,:])
+    return ttk_abserr, dtdx
+    
 def plot_tEDI_vs_tDI_bypat(j0jL, func_name, cutoff, filehead):
     '''
     Plotting estimated versus actual date of infection
@@ -213,16 +204,20 @@ def plot_tEDI_vs_tDI_bypat(j0jL, func_name, cutoff, filehead):
         s = 40, label = data['pat_names'][j])
     ax.plot(np.sort(ttk), np.sort(ttk), '--k')
 
-    ax = draw_ellipse(ax, xy = (5.3, 1.6), ab = (2.7,.7), psi = .25*np.pi,\
+    ax = draw_ellipse(ax, xy = (5.3, 1.7), ab = (2.4,.4), psi = .21*np.pi,\
     lw = 1, c = 'r')
-    ax = draw_ellipse(ax, xy = (1., 3.35), ab = (1.,.4), psi = .25*np.pi,\
+    ax = draw_ellipse(ax, xy = (1.3, 3.5), ab = (1.2,.5), psi = .17*np.pi,\
     lw = 1, c = 'b')
+    ax = draw_ellipse(ax, xy = (2.7, 1.1), ab = (.4, .4), psi = 0*np.pi,\
+    lw = 1, c = 'g')
+    ax = draw_ellipse(ax, xy = (6.1, 3.7), ab = (.4, .4), psi = 0*np.pi,\
+    lw = 1, c = 'g')
     ax.set_xlabel('TI [years]', fontsize = fs)
     ax.set_ylabel('ETI [years]', fontsize = fs)
     ax.legend(fontsize = 0.6*fs, loc = 2, ncol = 2)
     ax.tick_params(labelsize = .8*fs)
     ax.axis('tight')
-    plt.savefig(filehead + 'ETI_vs_TI.pdf')
+    plt.savefig(filehead + 'ETIvsTI.pdf')
     plt.close()
 
     fig, ax = plt.subplots(1, 1, figsize = (H, H))
@@ -241,59 +236,6 @@ def plot_tEDI_vs_tDI_bypat(j0jL, func_name, cutoff, filehead):
     ax.set_xlabel(r'ETI - TI, [years]', fontsize = fs)
     ax.tick_params(labelsize = .8*fs)
     plt.savefig(filehead + 'hist.pdf')
-    plt.close()
-    return ttk_est, ttk
-
-def plot_tEDI_vs_tDI_diff(j0jL, func_name, cutoffs, filehead):
-    '''
-    Plotting estimated versus actual date of infection
-
-    Input arguments:
-    j0jL: tuple of initial and final positions of the genome window
-    func_name: diversity measure
-    cutoff: low frequency cutoff value
-    filename: file path to save the figures
-    '''
-    fig, ax = plt.subplots(1, 1, figsize = (H, H))
-    for jcut, cutoff in enumerate(cutoffs):
-        ttk_est, ttk, xxk, jjk, dtdx_t0 =\
-        ttest_region(func_name, j0jL, cutoff, method, return_all = True)
-        ax.scatter(ttk, ttk_est, color = cols[jcut], label = 'xc = {:.3g}'.format(cutoff))
-    ax.plot(np.sort(ttk), np.sort(ttk), '--k')
-    ax.set_xlabel('TI [years]', fontsize = fs)
-    ax.set_ylabel('ETI [years]', fontsize = fs)
-    ax.legend(fontsize = 0.8*fs, loc = 2)
-    ax.tick_params(labelsize = .8*fs)
-    ax.axis('tight')
-    plt.savefig(filehead + 'ETI_vs_TI_diff.pdf')
-    plt.close()
-    
-    fig, ax = plt.subplots(1, 1, figsize = (H, H))
-    for jcut, cutoff in enumerate(cutoffs):
-        ttk_est, ttk, xxk, jjk, dtdx_t0 =\
-        ttest_region(func_name, j0jL, cutoff, method, return_all = True)
-        dttk = np.abs(ttk_est - ttk)
-        dtkave, dtkvar, tk = moving_average(ttk, dttk)
-        ax.plot(tk, dtkave, label = 'xc = {:.3g}'.format(cutoff))
-    ax.set_xlabel('TI [years]', fontsize = fs)
-    ax.set_ylabel(r'$|$ETI - TI$|$, [years]', fontsize = fs)
-    ax.legend(fontsize = 0.8*fs, loc = 2)
-    ax.tick_params(labelsize = .8*fs)
-    ax.axis('tight')
-    plt.savefig(filehead + 'error_vs_TI_cutoffs.pdf')
-    plt.close()
-    
-    fig, ax = plt.subplots(1, 1, figsize = (H, H))
-    for jcut, cutoff in enumerate(cutoffs):
-        ttk_est, ttk, xxk, jjk, dtdx_t0 =\
-        ttest_region(func_name, j0jL, cutoff, method, return_all = True)
-        ax.scatter(ttk, xxk, color = cols[jcut], label = 'xc = {:.3g}'.format(cutoff))
-    ax.set_xlabel('TI [years]', fontsize = fs)
-    ax.set_ylabel('diversity', fontsize = fs)
-    ax.legend(fontsize = 0.8*fs, loc = 2)
-    ax.tick_params(labelsize = .8*fs)
-    ax.axis('tight')
-    plt.savefig(filehead + 'D_vs_TI_diff.pdf')
     plt.close()
     return ttk_est, ttk
     
@@ -315,7 +257,7 @@ def moving_average(ttk, dttk, n = 25):
     tk_ave = np.array([np.mean(tk[j:j+n]) for j, t in enumerate(tk[:-n])])
     return dtk_ave, dtk_var/n, tk_ave
 
-def ROC_curves(func_name, j0jL, cutoff, Trecent, filename):
+def ROC_curves(func_name, j0jL, cutoff, Trecent, filehead):
     '''recent infection
 
     Plotting receiver operating characteristic (ROC curve)
@@ -329,14 +271,29 @@ def ROC_curves(func_name, j0jL, cutoff, Trecent, filename):
     fig, ax = plt.subplots(1, 1, figsize = (H, H))
     legs = []
     for cut in cutoff:
-        MM = ROC_curve(func_name, j0jL, cut, Trecent, ax)
-        AUC = np.sum(np.diff(MM[:,1,0])*MM[1:,0,0])
-        legs.append('xc = {}, AUC = {:.2g}'.format(cut, AUC))
+        MM, AUC = ROC_curve(func_name, j0jL, cut, Trecent, ax)
+#        AUC = np.sum(np.diff(MM[:,1,0])*MM[1:,0,0])
+        print Trecent, AUC, MM.shape
+        legs.append(r'$x_c$' +'= {}, AUC = {:.2g}'.format(cut, AUC))
     ax.set_xlabel('1-specificity', fontsize = fs)
     ax.set_ylabel('sensitivity', fontsize = fs)
     ax.tick_params(labelsize = 0.8*fs)
     ax.legend(legs, fontsize = 0.8*fs, loc = 0)
-    plt.savefig(filename)
+    plt.tight_layout()
+    plt.savefig(filehead + 'ROC.pdf')
+    plt.close()
+    
+    fig, ax = plt.subplots(1, 1, figsize = (H, H))
+    legs = []
+    for cut in cutoff:
+        ttcr, AUC = AUC_curve(func_name, j0jL, cut, ax)
+        legs.append(r'$x_c$' +'= {}'.format(cut))
+    ax.set_xlabel(r'$t_{cr}$ [years]', fontsize = fs)
+    ax.set_ylabel('AUC', fontsize = fs)
+    ax.tick_params(labelsize = 0.8*fs)
+    ax.legend(legs, fontsize = 0.8*fs, loc = 0)
+    plt.tight_layout()
+    plt.savefig(filehead + 'AUC.pdf')
     plt.close()
     return None
 
@@ -347,7 +304,7 @@ def ROC_curve(func_name, j0jL, cutoff, tcr, ax = None):
         FN = np.count_nonzero((ttk < tcr)*(xxk >= xcr))
         TN = np.count_nonzero((ttk >= tcr)*(xxk >= xcr))
         return np.array([[TP, FN], [FP, TN]])
-    CUT = EDI.window_cutoff(data, func_name, region(j0jL), cutoff)
+    CUT = EDI.window_cutoff(data, func_name, region(j0jL), cutoff, rf = rframe)
     ttk, xxk, jjk = CUT.realdata(Tmin, Tmax,  fcr = fcr, vload_min = vload_min,
                                  dilutions_min = dilutions_min)
 
@@ -356,8 +313,29 @@ def ROC_curve(func_name, j0jL, cutoff, tcr, ax = None):
     MM = M/np.sum(M, axis=2, keepdims = True)
     if ax is not None:
         ax.plot(MM[:,1,0], MM[:,0,0])
-    return MM
+    return MM, np.sum(np.diff(MM[:,1,0])*MM[1:,0,0])
 
+def AUC_curve(func_name, j0jL, cutoff, ax = None):
+    def contable(ttk, xxk, tcr, xcr):
+        TP = np.count_nonzero((ttk < tcr)*(xxk < xcr))
+        FP = np.count_nonzero((ttk >= tcr)*(xxk < xcr))
+        FN = np.count_nonzero((ttk < tcr)*(xxk >= xcr))
+        TN = np.count_nonzero((ttk >= tcr)*(xxk >= xcr))
+        return np.array([[TP, FN], [FP, TN]])
+    CUT = EDI.window_cutoff(data, func_name, region(j0jL), cutoff, rf = rframe)
+    ttk, xxk, jjk = CUT.realdata(Tmin, Tmax,  fcr = fcr, vload_min = vload_min,
+                                 dilutions_min = dilutions_min)
+
+    xxcr = np.sort(np.unique(xxk))
+    ttcr = np.sort(np.unique(ttk))
+    M = np.array([[contable(ttk, xxk, tcr, xcr) for xcr in xxcr] for tcr in ttcr])
+    MM = M/np.sum(M, axis=3, keepdims = True)
+    AUC = np.sum(np.diff(MM[:,:,1,0], axis=1)*MM[:,1:,0,0], axis=1)
+    print M.shape, ttcr.shape, xxcr.shape
+    if ax is not None:
+        ax.plot(ttcr, AUC)
+    return ttcr, AUC
+    
 def maketable_slopes(j0jL, func_name, cutoffs, methods, filehead):
     '''
     Save table of slopes, intercepts and errors for different values of
@@ -421,7 +399,7 @@ def plot_slope_bootstrap(j0jL, func_name, cutoff, filename, nboot = 10**3):
     filename: path to the file for saving the figure
     nboot: number of bootstrap realizations
     '''
-    CUT = EDI.window_cutoff(data, func_name, region(j0jL), cutoff)
+    CUT = EDI.window_cutoff(data, func_name, region(j0jL), cutoff, rf = rframe)
     ttk, xxk, jjk = CUT.realdata(Tmin, Tmax,  fcr = fcr, vload_min = vload_min,
                                  dilutions_min = dilutions_min)
     dtdx_t0 = np.zeros((nboot, 2))
@@ -457,7 +435,7 @@ def plot_slope_bootstrap(j0jL, func_name, cutoff, filename, nboot = 10**3):
     plt.close()
     return None
 
-def plot_corrcoeff0(j0jL, measures, cutoffs, filename):
+def plot_corrcoeff0(j0jL, measures, cutoffs, filename, rf = rframe):
     '''
     Plot pearson correlation coefficients between times
     and corresponding diversity values
@@ -467,7 +445,6 @@ def plot_corrcoeff0(j0jL, measures, cutoffs, filename):
     measures: diversity measures
     cutoffs: low frequency cutoffs
     filename: path to the file for saving the figure
-    nboot: number of bootstrap realizations
     '''
     fig, ax = plt.subplots(1, len(measures), figsize = (H*len(measures), 2*H),\
     sharey = True)
@@ -476,7 +453,7 @@ def plot_corrcoeff0(j0jL, measures, cutoffs, filename):
     for j, measure in enumerate(measures):
         rxt = np.zeros((cutoffs.shape[0], len(data['pat_names'])))
         for jcut, cut in enumerate(cutoffs):
-            CUT = EDI.window_cutoff(data, measure, region(j0jL), cut)
+            CUT = EDI.window_cutoff(data, measure, region(j0jL), cut, rf = rf)
             ttk_all, xxk_all, jjk = CUT.realdata(Tmin, Tmax,  fcr = fcr,\
             vload_min = vload_min, dilutions_min = dilutions_min)
             for jpat in xrange(Npat):
@@ -498,6 +475,44 @@ def plot_corrcoeff0(j0jL, measures, cutoffs, filename):
     plt.close()
     return None
 
+def plot_corr_rf(j0jL, measure, cutoffs, filename):
+    '''
+    Plot pearson correlation coefficients between times
+    and corresponding diversity values for different reference frames
+
+    Input arguments:
+    j0jL: tuple of initial and final positions of the genome window
+    measure: diversity measure
+    cutoffs: low frequency cutoffs
+    filename: path to the file for saving the figure
+    '''
+    fig, ax = plt.subplots(1, 3, figsize = (3*H, 2*H),\
+    sharey = True)
+    for j in xrange(3):
+        rxt = np.zeros((cutoffs.shape[0], len(data['pat_names'])))
+        for jcut, cut in enumerate(cutoffs):
+            CUT = EDI.window_cutoff(data, measure, region(j0jL), cut, rf = j)
+            ttk_all, xxk_all, jjk = CUT.realdata(Tmin, Tmax,  fcr = fcr,\
+            vload_min = vload_min, dilutions_min = dilutions_min)
+            for jpat in xrange(Npat):
+                idx = np.where(jjk == jpat)
+                ttk = ttk_all[idx]
+                xxk = xxk_all[idx]
+                rxt[jcut, jpat] = np.corrcoef(ttk, xxk)[0,1]
+
+        for jr, r in enumerate(rxt.T):
+            ax[j].plot(cutoffs, r, styles[jr])
+        ax[j].tick_params(labelsize = .8*fs)
+        ax[j].set_xlabel(r'$x_c$', fontsize = fs)
+        ax[j].set_xticks(np.arange(0.,.5,.1))
+        ax[j].set_title('codon pos {}'.format(j+1), fontsize = fs)
+    ax[2].legend(data['pat_names'], fontsize = 0.8*fs, loc = 0)
+    ax[0].set_ylabel(r'$r_{xt}$', fontsize = fs)
+    fig.subplots_adjust(hspace = 0.1)
+    plt.savefig(filename)
+    plt.close()
+    return None
+    
 #Sliding window plot functions
 def plot_sliding_ws(func_name, cutoff, wws, filename, lstep = 10):
     '''
@@ -543,22 +558,22 @@ def plot_sliding_ws(func_name, cutoff, wws, filename, lstep = 10):
     ax[1].set_xlim((0, L + ws))
     ax[1].set_axis_off()
 
-##    coord = np.array(anno.loc[anno['name'].isin(feas), ['x1', 'x2']])
-#    coord = np.array([[anno['x1'], anno['x2']] for anno in annot
-#    if anno['name'] in feas])
-
     for jgene, gene in enumerate(feas):
-        tk_est, tk = ttest_region(func_name, gene, cutoff, 'LAD')
-        dtk = tk_est - tk
-        ttk_range = np.mean(np.abs(dtk))
         (xL, xR) = coords[gene]
+        tk_est, tk = ttest_region(func_name, gene, cutoff, 'LAD', rf = None)
+        ttk_range = np.mean(np.abs(tk_est - tk))
         ax[0].axhline(y = ttk_range, xmin = xL/(L + ws), xmax = xR/(L + ws),\
         color = 'k')
-        ax[0].text((xL + xR)/2, ttk_range + .05,
-                gene,
-                color='k',
-                fontsize = .8*fs,
-                ha='center')
+        
+        if rframe is not None:
+            tk_est, tk = ttest_region(func_name, gene, cutoff, 'LAD')
+            ttk_range1 = np.mean(np.abs(tk_est - tk))
+            ax[0].axhline(y = ttk_range1, xmin = xL/(L + ws), xmax = xR/(L + ws),\
+            color = 'k', ls = '--')
+            ttk_range = np.max([ttk_range, ttk_range1])
+
+        ax[0].text((xL + xR)/2, ttk_range + .03, gene, color='k',\
+        fontsize = .8*fs, ha='center')
 
     plt.subplots_adjust(hspace = hsp)
     plt.savefig(filename)
@@ -586,7 +601,7 @@ def plot_sliding_ws(func_name, cutoff, wws, filename, lstep = 10):
     ax1 = plt.subplot2grid((f, 1), (f-1,0), rowspan = 1, sharex = ax0)
     for jws, ws in enumerate(wws):
         ax0.plot(ll_all[jws], cov_points_all[jws], label = 'ws = {}'.format(ws))
-    ax0.set_ylabel('coverage, sdatapoints %', fontsize = fs)
+    ax0.set_ylabel('coverage, data points %', fontsize = fs)
     ax0.legend(fontsize = 0.8*fs, loc = 0)
     ax0.tick_params(labelsize = .8*fs)
 
@@ -644,31 +659,11 @@ def draw_genome(anno_elements,
                 pad=0.2):
     '''Draw genome boxes'''
     from matplotlib.patches import Rectangle
-#    from Bio.SeqFeature import CompoundLocation
-#    import pandas as pd
 
     if ax is None:
         fig, ax = plt.subplots(1, 1)
 
     ax.set_ylim([-pad,rows*(height+pad)])
-#    anno_elements = []
-#    for name, feature in annotations.iteritems():
-#        if type(feature.location) is CompoundLocation:
-#            locs = feature.location.parts
-#        else:
-#            locs = [feature.location]
-#        for li,loc in enumerate(locs):
-#            x = [loc.nofuzzy_start, loc.nofuzzy_end]
-#            anno_elements.append({'name': name,
-#                                  'x1': x[0],
-#                                  'x2': x[1],
-#                                  'width': x[1] - x[0]})
-#            if name[0]=='V':
-#                anno_elements[-1]['ri']=3
-#            elif li:
-#                anno_elements[-1]['ri']=(anno_elements[-2]['ri'] + ((x[0] - anno_elements[-2]['x2'])%3))%3
-#            else:
-#                anno_elements[-1]['ri']=x[0]%3
 
     anno_elements.sort(key = lambda x:x['x1'])
     for ai, anno in enumerate(anno_elements):

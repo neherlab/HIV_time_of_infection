@@ -54,7 +54,7 @@ def load_patient_data(patient_names = 'all',
             tt = np.load(filepath + '{}_tt.npy'.format(pat_name))
             data = np.load(filepath + '{}_data.npy'.format(pat_name))
             mask = np.load(filepath + '{}_mask.npy'.format(pat_name))
-            freqs = np.ma.masked_array(data, mask = mask) 
+            freqs = np.ma.masked_array(data, mask = mask)
             vload = np.load(filepath + '{}_viral_load.npy'.format(pat_name))
             dilutions = np.load(filepath + '{}_dilutions.npy'.format(pat_name))
             dilutions_mask = np.load(filepath + '{}_dilutions_mask.npy'.format(pat_name))
@@ -91,7 +91,6 @@ def Hamming_cut(freqs, alpha):
     HM = np.ma.zeros(freqs.shape[::2])
     for jt, freq in enumerate(freqs):
         idx = np.where(np.max(freq, axis = 0) <= 1. - alpha)[0]
-#        idx = np.where(np.sum(freq > alpha, axis = 0) > 1)
         HM[jt, idx] = 1. - np.ma.sum(freq[:,idx]**2, axis = 0)
     return HM
 
@@ -108,7 +107,7 @@ class window_cutoff(object):
     Evaluating statistic of interest (Hamming distance, entropy, etc.)
     within a genome window with a given cutoff
     '''
-    def __init__(self, data, func_name, j0jL, cut, rf = 2):
+    def __init__(self, data, func_name, j0jL, cut, rf = None):
         '''
         data - patient data
         func - function defining statistic of interest (number of ambiguous sites, entropy, etc.)
@@ -300,7 +299,6 @@ def EDI_LAD(ttk, xxk, jjk = None, bypat = False, onlyslope = False):
         dtdx_t0[:,0] = Mdtdx[np.triu_indices(N, 1)]
         dtdx_t0[:,1] = Mt0[np.triu_indices(N, 1)]            
         A = ttk[np.newaxis,:] - dtdx_t0[:,:1]*xxk[np.newaxis,:] - dtdx_t0[:,1:]
-#        A = A/ttk[np.newaxis,:]
         error = np.sum(np.abs(A), axis = 1)
     if error.shape[0] > 0:
         tk_est = np.polyval(dtdx_t0[np.argmin(error),:], xxk)
