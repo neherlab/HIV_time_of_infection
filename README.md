@@ -22,3 +22,4 @@ These file are derived from the NGS data by mapping.
 
 
 The scripts `EDI_functions.py`, `EDI_plotting.py`, and `EDI_median_regression.py` contain the source code to load the data, determine the regression coefficients, and generate the figures in the manuscript.
+`EDI_functions.py` : functions generating data from 
