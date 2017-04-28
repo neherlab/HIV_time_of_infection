@@ -10,15 +10,15 @@ This project uses whole genome deep sequencing data from [Zanini et al 2015](htt
 The directory `Frequency_data` contains the patient data on which the analysis is based.
 These file are derived from the NGS data by mapping. 
 
-`patient_data.npy` and `patient_mask.npy` 
+`patient_tt.npy` :   time points for patient samples
 
-`patient_tt.npy`
+`patient_data.npy` and `patient_mask.npy` : data and mask for the array of nucleotide frequencies for all time points
 
-`patient_viral_load.npy`
+`patient_viral_load.npy` :  viral load data
 
-`patient_dilutions.npy` and `patient_dilutions_mask.npy`
+`patient_dilutions.npy` and `patient_dilutions_mask.npy` : dilutions data (see [Zanini et al 2015])
 
-`annotations.txt`
+`annotations.txt` : auxhiliary gene annotations info
 
 
 The scripts `EDI_functions.py`, `EDI_plotting.py`, and `EDI_median_regression.py` contain the source code to load the data, determine the regression coefficients, and generate the figures in the manuscript.
