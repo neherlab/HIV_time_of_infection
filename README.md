@@ -5,7 +5,7 @@ Code associated with our manuscript on estimating the time of HIV infection from
 This project uses whole genome deep sequencing data from [Zanini et al 2015](http://hiv.biozentrum.unibas.ch) to establish a method to estimate time of infection from viral diversity.
 
 
-
+<br><br>
 `Frequency_data`
 [//]: # (The directory `Frequency_data` contains arrays of nucleotide frequencies in each of the samples on which the analysis is based.)
 The directory `Frequency_data` contains the patient data on which the analysis is based.
