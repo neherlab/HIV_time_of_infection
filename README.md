@@ -9,10 +9,15 @@ This project uses whole genome deep sequencing data from [Zanini et al 2015](htt
 [//]: # (The directory `Frequency_data` contains arrays of nucleotide frequencies in each of the samples on which the analysis is based.)
 The directory `Frequency_data` contains the patient data on which the analysis is based.
 These file are derived from the NGS data by mapping. 
+
 `patient_data.npy` and `patient_mask.npy` 
+
 `patient_tt.npy`
+
 `patient_viral_load.npy`
+
 `patient_dilutions.npy` and `patient_dilutions_mask.npy`
+
 `annotations.txt`
 
 
