@@ -16,10 +16,12 @@ These file are derived from the NGS data by mapping.
 
 `patient_viral_load.npy` :  viral load data
 
-`patient_dilutions.npy` and `patient_dilutions_mask.npy` : dilutions data (see [Zanini et al 2015])
+`patient_dilutions.npy` and `patient_dilutions_mask.npy` : dilutions data (see [Zanini et al 2015](http://hiv.biozentrum.unibas.ch))
 
 `annotations.txt` : auxhiliary gene annotations info
 
 
 The scripts `EDI_functions.py`, `EDI_plotting.py`, and `EDI_median_regression.py` contain the source code to load the data, determine the regression coefficients, and generate the figures in the manuscript.
-`EDI_functions.py` : functions generating data from 
+`EDI_functions.py` : functions for loading data, calculating sequence diversity, and linear fitting
+`EDI_plotting.py` : functions for data analysis and generating plots
+`EDI_median_regression.py` : script generating plots presented in the manuscript
