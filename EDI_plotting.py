@@ -55,7 +55,7 @@ def region(j0jL):
     if type(j0jL) is str:
         return coords[j0jL]
     else:
-        j0jL
+        return j0jL
     
 def plot_traj_xt(j0jL, measure, cutoff, filename):
     '''
