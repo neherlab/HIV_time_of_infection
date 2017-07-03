@@ -70,36 +70,58 @@ def ttest_region(func_name, j0jL, cutoff, method, rf = rframe):
         ttk_est[idx_pat] = dtdx_t0[jpat,0]*xxk[idx_pat] + dtdx_t0[jpat,1]
     return ttk_est, ttk, xxk, jjk, dtdx_t0
 
-def dt(d1,d2):
-    	return (d1.toordinal()-d2.toordinal())/365.25
 
-def loadK31(func_name, reg, cutoff, rf = rframe):
-    pats = load_patients(csv=True)
-    fmt = "%d/%m/%Y"
-    res = []
-    for pcode, pat in pats.iterrows():
-        try:
-            EDI = datetime.strptime(pat["infect date best"], fmt)
-            P = Patient(pat)
-            aft = P.get_allele_frequency_trajectories(reg)[0]
-            for si, (scode, sample) in enumerate(P.samples.iterrows()):
-                try:
-                    date = datetime.strptime(sample["date"], fmt)
-                    if rf is None:
+def loadK31(reg, filepath, fromHIV = False):
+    data = {}
+    if fromHIV:    
+        pats = load_patients(csv=True)
+        fmt = "%d/%m/%Y"
+        fhandle = open(filepath + 'K31_info_{}.txt'.format(reg), 'w')
+        for pcode, pat in pats.iterrows():
+            try:
+                EDI = datetime.strptime(pat["infect date best"], fmt)
+                P = Patient(pat)
+                aft = P.get_allele_frequency_trajectories(reg)[0]
+                for si, (scode, sample) in enumerate(P.samples.iterrows()):
+                    try:
+                        date = datetime.strptime(sample["date"], fmt)
                         af = aft[si]
-                    else:
-                        af = aft[si][:,rf::3]
-                    mask = (1.0 - af.max(axis=0))>cutoff
-                    div = ((1.0 - (af**2).sum(axis=0))*mask).mean()
-                    print(EDI, date, div)
-                    res.append((dt(date, EDI), div))
-                except:
-                        print(scode, "didn't work")
-
-        except:
-            print("skipping patient ", pcode)
-    res = np.array(res)
-    return res[:,0], res[:,1]
+                        TI = date.toordinal() - EDI.toordinal()
+                        fhandle.write('{}\t{}\t{}\n'.format(pcode, scode, TI))
+                        np.save(filepath + '{}_{}_{}_data.npy'.format(pcode, scode, reg), af.data)
+                        np.save(filepath + '{}_{}_{}_mask.npy'.format(pcode, scode, reg), af.mask)
+                        data['{}_{}'.format(pcode,scode)] = (date.toordinal() - EDI.toordinal(), af)
+                        print(pcode, scode, "WORKED!!!")
+                    except:
+                            print(scode, "didn't work")
+    
+            except:
+                print("skipping patient ", pcode)
+        fhandle.close()
+    else:
+        with open(filepath + 'K31_info_{}.txt'.format(reg), 'r') as fhandle:
+            for line in fhandle:
+                words = line.split()
+                pat_name = '_'.join(words[:2])
+                af_data = np.load(filepath + '{}_{}_data.npy'.format(pat_name, reg))
+                af_mask = np.load(filepath + '{}_{}_mask.npy'.format(pat_name, reg))
+                af = np.ma.masked_array(af_data, mask = af_mask)
+                data[pat_name] = (int(words[2]), af)
+    return data
+    
+    
+def K31_diversity(data, func_name, cutoff, rf = rframe):
+    TT = np.zeros(len(data.keys()))
+    DD = np.zeros(len(data.keys()))
+    for j, key in enumerate(data.keys()):
+        (TT[j], af) = data[key]
+        if rf is not None:
+            af = af[:,rf::3]
+        mask = (1.0 - af.max(axis=0))>cutoff
+        DD[j] = ((1.0 - (af**2).sum(axis=0))*mask).mean()
+    return TT/365.25, DD
+        
+    
     
 if __name__=="__main__":
     '''Predicting infection dates for the 31 additional patients'''
@@ -113,7 +135,7 @@ if __name__=="__main__":
     #Creating figures for the manuscript
 #    t0 = time.time()
     reg = 'pol'
-    j0jL = coords['pol']
+    j0jL = coords[reg]
     measure = 'diversity'
     meas = translate_measures(measure)
     cutoff1 = 0.01
@@ -124,10 +146,12 @@ if __name__=="__main__":
                              dilutions_min = dilutions_min)
     ttk_est, dtdx = TI.TI_from_diversity(xxk, j0jL, cutoff1, rf = rframe)
     
-    TT, DD = loadK31(measure, reg, cutoff1)
+    K31data = loadK31(reg, './K31_data/{}/'.format(reg))
+    TT, DD = K31_diversity(K31data, measure, cutoff1)
     TTest, dtdx_t0 = TI.TI_from_diversity(DD, j0jL, cutoff1, rf = rframe)
-    print dtdx
-    print dtdx_t0
+    print DD.shape, TT.shape
+    print K31data.keys()
+    print data.keys()
     
     fig, ax = plt.subplots(1,2, figsize = (2*H, H))
     ax[0].plot(ttk, xxk, 's', label = 'HIVEVO')    
@@ -139,6 +163,6 @@ if __name__=="__main__":
     ax[1].set_xlabel('TI [years]', fontsize = fs)
     ax[1].set_ylabel('ETI [years]', fontsize = fs)
     ax[0].legend(fontsize = 0.8*fs, loc = 0)
-    plt.savefig(outdir_name + 'K31_rf2.pdf')
+    plt.savefig(outdir_name + 'K31_{}_rf2.pdf'.format(reg))
     plt.close()
     
