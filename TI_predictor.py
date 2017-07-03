@@ -45,7 +45,7 @@ def region(j0jL):
     else:
         return j0jL
 
-def TI_from_diversity(DD, j0jL, cutoff, nboot = None):
+def TI_from_diversity(DD, j0jL, cutoff, nboot = None, rf = rframe):
     '''
     Estimate the time of infection (TI) from the specified diversity values
 
@@ -60,7 +60,7 @@ def TI_from_diversity(DD, j0jL, cutoff, nboot = None):
     dtdx_t0: slope and intercept values (with rows corresponding to bootstrap relizations)
     '''
     
-    CUT = EDI.window_cutoff(data, func_name, region(j0jL), cutoff, rf = rframe)
+    CUT = EDI.window_cutoff(data, func_name, region(j0jL), cutoff, rf = rf)
     ttk, xxk, jjk = CUT.realdata(Tmin, Tmax,  fcr = fcr, vload_min = vload_min,
                                  dilutions_min = dilutions_min)
     if nboot is None:
