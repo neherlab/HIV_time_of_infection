@@ -28,6 +28,7 @@ marks = ['o', 's', '^', 'd', 'x', 'p', 'v', '<', '>', '1', '2', '3', '4', '*', '
 marks1 = ['o']*6 + ['^']*6
 styles = ['-']*6 + ['--']*6
 fs = 28
+fs1 = 42
 H = 8
 
 # The genome annotations
@@ -79,11 +80,11 @@ def plot_traj_xt(j0jL, measure, cutoff, filename):
     fig, ax = plt.subplots(1, 3, figsize = (3*H, 2*H), sharey = True)
     for j in xrange(3):
         ax_traj_xt(ax[j], rf = j)
-        ax[j].tick_params(labelsize = .8*fs)
-        ax[j].set_xlabel('TI [years]', fontsize = fs)
-        ax[j].set_title('codon pos {}'.format(j+1), fontsize = fs)
-    ax[0].set_ylabel(leg_byname(measure), fontsize = fs)
-    ax[0].legend(data['pat_names'], fontsize = 0.8*fs, loc = 0)
+        ax[j].tick_params(labelsize = .8*fs1)
+        ax[j].set_xlabel('TI [years]', fontsize = fs1)
+        ax[j].set_title('codon pos {}'.format(j+1), fontsize = fs1)
+    ax[0].set_ylabel(leg_byname(measure), fontsize = fs1)
+    ax[0].legend(data['pat_names'], fontsize = 0.8*fs1, loc = 0)
     fig.subplots_adjust(wspace = 0.1)
     plt.savefig(filename)
     plt.close()
@@ -460,13 +461,13 @@ def plot_corrcoeff0(j0jL, measures, cutoffs, filename, rf = rframe):
                 rxt[jcut, jpat] = np.corrcoef(ttk, xxk)[0,1]
 
         for jr, r in enumerate(rxt.T):
-            ax[j].plot(cutoffs, r, styles[jr])
-        ax[j].set_title(titls[j], fontsize = fs)
-        ax[j].tick_params(labelsize = .8*fs)
-        ax[j].set_xlabel(r'$x_c$', fontsize = fs)
+            ax[j].plot(cutoffs, r**2, styles[jr])
+        ax[j].set_title(titls[j], fontsize = fs1)
+        ax[j].tick_params(labelsize = .8*fs1)
+        ax[j].set_xlabel(r'$x_c$', fontsize = fs1)
         ax[j].set_xticks(np.arange(0.,.5,.1))
-    ax[0].legend(data['pat_names'], fontsize = 0.8*fs, loc = 0)
-    ax[0].set_ylabel(r'$r_{xt}$', fontsize = fs)
+    ax[0].legend(data['pat_names'], fontsize = 0.8*fs1, loc = 0)
+    ax[0].set_ylabel(r'$r^2$', fontsize = fs1)
     fig.subplots_adjust(hspace = 0.1)
     plt.savefig(filename)
     plt.close()
@@ -498,13 +499,13 @@ def plot_corr_rf(j0jL, measure, cutoffs, filename):
                 rxt[jcut, jpat] = np.corrcoef(ttk, xxk)[0,1]
 
         for jr, r in enumerate(rxt.T):
-            ax[j].plot(cutoffs, r, styles[jr])
-        ax[j].tick_params(labelsize = .8*fs)
-        ax[j].set_xlabel(r'$x_c$', fontsize = fs)
+            ax[j].plot(cutoffs, r**2, styles[jr])
+        ax[j].tick_params(labelsize = .8*fs1)
+        ax[j].set_xlabel(r'$x_c$', fontsize = fs1)
         ax[j].set_xticks(np.arange(0.,.5,.1))
-        ax[j].set_title('codon pos {}'.format(j+1), fontsize = fs)
-    ax[2].legend(data['pat_names'], fontsize = 0.8*fs, loc = 0)
-    ax[0].set_ylabel(r'$r_{xt}$', fontsize = fs)
+        ax[j].set_title('codon pos {}'.format(j+1), fontsize = fs1)
+    ax[2].legend(data['pat_names'], fontsize = 0.8*fs1, loc = 0)
+    ax[0].set_ylabel(r'$r^2$', fontsize = fs1)
     fig.subplots_adjust(hspace = 0.1)
     plt.savefig(filename)
     plt.close()
