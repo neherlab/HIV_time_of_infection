@@ -11,6 +11,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import EDI_functions as EDI
 sns.set_style('darkgrid')
+sns.set(style = 'darkgrid', font = u'Verdana')
+
+np.random.seed(133)
 
 
 # constants
@@ -29,6 +32,7 @@ marks1 = ['o']*6 + ['^']*6
 styles = ['-']*6 + ['--']*6
 fs = 28
 fs1 = 42
+ms = 10
 H = 8
 
 # The genome annotations
@@ -44,7 +48,12 @@ feas = ['gag', 'pol', 'env']
 
 
 #loading frequency data
-data = EDI.load_patient_data(patient_names = 'all', filepath = datapath)
+pnames = 'all'
+#pnames = ['p{}'.format(j+1) for j in xrange(11)]
+#pnames.remove('p6')
+#pnames.remove('p1')
+#pnames.remove('p3')
+data = EDI.load_patient_data(patient_names = pnames, filepath = datapath)
 Npat = len(data['pat_names'])
 
 def leg_byname(funcname):
@@ -200,8 +209,10 @@ def plot_tEDI_vs_tDI_bypat(j0jL, func_name, cutoff, filehead):
     fig, ax = plt.subplots(1, 1, figsize = (H, H))
     for j in xrange(np.max(jjk) + 1):
         jj = np.where(jjk == j)
-        ax.scatter(ttk[jj], ttk_est[jj], color = cols[j], marker = marks1[j],\
-        s = 40, label = data['pat_names'][j])
+#        ax.scatter(ttk[jj], ttk_est[jj], color = cols[j], marker = marks1[j],\
+#        s = 40, label = data['pat_names'][j])
+        ax.plot(ttk[jj], ttk_est[jj], linestyle = '', markerfacecolor = cols[j], marker = marks1[j],\
+        markersize = ms, label = data['pat_names'][j])
     ax.plot(np.sort(ttk), np.sort(ttk), '--k')
 
     ax = draw_ellipse(ax, xy = (5.3, 1.7), ab = (2.4,.4), psi = .21*np.pi,\
@@ -216,7 +227,8 @@ def plot_tEDI_vs_tDI_bypat(j0jL, func_name, cutoff, filehead):
     ax.set_ylabel('ETI [years]', fontsize = fs)
     ax.legend(fontsize = 0.6*fs, loc = 2, ncol = 2)
     ax.tick_params(labelsize = .8*fs)
-    ax.axis('tight')
+    fig.tight_layout()
+#    ax.axis('tight')
     plt.savefig(filehead + 'ETIvsTI.pdf')
     plt.close()
 
@@ -227,7 +239,7 @@ def plot_tEDI_vs_tDI_bypat(j0jL, func_name, cutoff, filehead):
     ax.set_xlabel('TI [years]', fontsize = fs)
     ax.set_ylabel(r'$|$ETI - TI$|$, [years]', fontsize = fs)
     ax.tick_params(labelsize = .8*fs)
-    ax.axis('tight')
+    fig.tight_layout()
     plt.savefig(filehead + 'error_vs_TI.pdf')
     plt.close()
 
@@ -408,15 +420,17 @@ def plot_slope_bootstrap(j0jL, func_name, cutoff, filename, nboot = 10**3):
         xk = np.ma.concatenate([xxk[np.where(jjk == j)] for j in idx_boot])
         ttk_est, dtdx_t0[jboot,:] = EDI.fitmeth_byname(tk, xk, method = method)
 
+    label_s = 's [years/diversity]'
+    label_t0 = r'$t_0$' + '[years]'
     fig, ax = plt.subplots(1, 2, figsize = (2*H, H), sharey = True)
     ax[0].hist(dtdx_t0[:,0], alpha = 0.5)
     ax[1].hist(dtdx_t0[:,1], alpha = 0.5)
 
-    ax[0].set_xlabel('slope [years]', fontsize = fs)
-    ax[0].set_ylabel(method, fontsize = fs)
+    ax[0].set_xlabel(label_s, fontsize = fs)
+#    ax[0].set_ylabel(method, fontsize = fs)
     ax[0].tick_params(labelsize = .8*fs)
 
-    ax[1].set_xlabel('intercept', fontsize = fs)
+    ax[1].set_xlabel(label_t0, fontsize = fs)
     ax[1].tick_params(labelsize = .8*fs)
     plt.savefig(filename)
     plt.close()
@@ -424,13 +438,37 @@ def plot_slope_bootstrap(j0jL, func_name, cutoff, filename, nboot = 10**3):
     fig, ax = plt.subplots(1, 1, figsize = (1.2*H, H))
     Hist, xedges, yedges, cax = ax.hist2d(dtdx_t0[:,0], dtdx_t0[:,1],\
     cmap = plt.cm.Blues)
-    ax.set_xlabel('slope [years]', fontsize = fs)
-    ax.set_ylabel('intercept', fontsize = fs)
+    ax.set_xlabel(label_s, fontsize = fs)
+    ax.set_ylabel(label_t0, fontsize = fs)
     ax.tick_params(labelsize = .8*fs)
     cbar = fig.colorbar(cax)
     cbar.ax.tick_params(labelsize = .8*fs)
+    fig.tight_layout()
     plt.savefig(filename[:-4] + '_2d.pdf')
     plt.close()
+    
+#    sns_plot = sns.jointplot(dtdx_t0[:,0], dtdx_t0[:,1], size = H, kind = 'hex', stat_func = None)
+#    with sns.axes_style("white"):
+#        sns.set_style(font = u'Verdana')
+    sns_plot = sns.jointplot(dtdx_t0[:,0], dtdx_t0[:,1], stat_func = None, size = H, kind = 'kde', joint_kws = {'shade_lowest' : False})
+    sns_plot.set_axis_labels(xlabel = label_s, ylabel = label_t0, fontsize = fs)
+    sns_plot.ax_joint.tick_params(labelsize = .8*fs)
+    sns_plot.savefig(filename[:-4] + '_joint.pdf')
+    plt.close(sns_plot.fig)
+    
+#    sns_plot.close()
+#    fig, ax1 = plt.subplots(1, 1, figsize = (1.2*H, H))
+#    sns_plot = sns.jointplot(dtdx_t0[:,0], dtdx_t0[:,1])
+#    fig.sca("axis")
+##    Hist, xedges, yedges, cax = ax.hist2d(dtdx_t0[:,0], dtdx_t0[:,1],\
+##    cmap = plt.cm.Blues)
+#    ax.set_xlabel('slope [years]', fontsize = fs)
+#    ax.set_ylabel('intercept', fontsize = fs)
+#    ax.tick_params(labelsize = .8*fs)
+#    cbar = fig.colorbar(cax)
+#    cbar.ax.tick_params(labelsize = .8*fs)
+#    plt.savefig(filename[:-4] + '_joint.pdf')
+#    plt.close()
     return None
 
 def plot_corrcoeff0(j0jL, measures, cutoffs, filename, rf = rframe):

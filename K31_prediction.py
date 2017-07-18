@@ -12,8 +12,8 @@ import os, sys
 import EDI_functions as EDI
 import TI_predictor as TI
 from datetime import datetime
-import seaborn as sns
-sns.set(style = 'darkgrid', font = u'Verdana')
+#import seaborn as sns
+#sns.set(style = 'darkgrid', font = u'Verdana')
 
 
 # constants
@@ -86,7 +86,7 @@ def loadK31(reg, filepath, fromHIV = False):
             try:
                 EDI = datetime.strptime(pat["infect date best"], fmt)
                 P = Patient(pat)
-                aft = P.get_allele_frequency_trajectories(reg)[0]
+                aft = P.get_allele_frequency_trajectories(reg, cov_min=500)[0]
                 for si, (scode, sample) in enumerate(P.samples.iterrows()):
                     try:
                         date = datetime.strptime(sample["date"], fmt)
@@ -98,7 +98,7 @@ def loadK31(reg, filepath, fromHIV = False):
                         data['{}_{}'.format(pcode,scode)] = (date.toordinal() - EDI.toordinal(), af)
                         print(pcode, scode, "WORKED!!!")
                     except:
-                            print(scode, "didn't work")
+                        print(scode, "didn't work")
     
             except:
                 print("skipping patient ", pcode)
@@ -155,9 +155,10 @@ if __name__=="__main__":
     meas = translate_measures(measure)
     cutoff1 = 0.001
     bypairs = True
-    pairs_legend = False
+    pairs_legend = True
 #    reg = 'pol'
     for reg in ['gag', 'pol']:
+        print reg
         j0jL = coords[reg]
     
         #Loading and processing the training set data (11 patients)
@@ -180,6 +181,8 @@ if __name__=="__main__":
             cc = cols*f
             mm = [s for s in marks[:f] for j in xrange(len(cols))]
             pairs = [[j for j, p in enumerate(pats) if p ==pat] for pat in pats_unique]
+#            print len(pats_unique)
+#            print pairs
         
         
         fig, ax = plt.subplots(1,1, figsize = (H, H))
@@ -217,7 +220,16 @@ if __name__=="__main__":
         plt.savefig(outdir_name + 'K31_{}_hist_rf2.pdf'.format(reg))
         plt.close()
         
-
+        Nover = np.count_nonzero(ttk_est - ttk > 1.)
+        Nunder = np.count_nonzero(ttk - ttk_est > 1.)
+        Nall = ttk.shape[0]
+        print Nover, Nunder, Nall, Nover/Nall, Nunder/Nall
+        
+        Nover = np.count_nonzero(TTest - TT > 1.)
+        Nunder = np.count_nonzero(TT - TTest > 1.)
+        Nall = TT.shape[0]
+        print Nover, Nunder, Nall, Nover/Nall, Nunder/Nall
+        
         fig, ax = plt.subplots(1,1, figsize = (2*H, 2*H))
         ax.plot(ttk, xxk, linestyle = '', marker = '^', markersize = 0.8*ms, markerfacecolor = 'gray', label = 'training data')
         if bypairs:
@@ -238,20 +250,20 @@ if __name__=="__main__":
         plt.close()
         
         
-        fig, ax = plt.subplots(1, 3, figsize = (3*H, 2*H), sharey = True)
-        for j in xrange(3):
-            CUT = EDI.window_cutoff(data, meas, region(j0jL), cutoff1, rf = j)
-            ttk, xxk, jjk = CUT.realdata(Tmin, Tmax, fcr = fcr)
-            ax[j].plot(ttk, xxk, marker = '^', linestyle = '', markerfacecolor = 'gray', markersize = 0.8*ms, label = 'training data')
-                
-            T, D, pats, samples = K31_diversity(K31data, cutoff1, rf = j)
-            jj = np.argsort(T)
-            ax[j].plot(T[jj], D[jj], 'ob', markersize = ms, label='validation data')
-            ax[j].tick_params(labelsize = .8*fs1)
-            ax[j].set_xlabel('TI [years]', fontsize = fs1)
-            ax[j].set_title('codon pos {}'.format(j+1), fontsize = fs1)
-        ax[0].set_ylabel('diversity', fontsize = fs1)
-        ax[0].legend(fontsize = 0.8*fs1, loc = 0)
-        fig.subplots_adjust(wspace = 0.1)
-        plt.savefig(outdir_name + 'K31_{}_diversity.pdf'.format(reg))
-        plt.close()
+#        fig, ax = plt.subplots(1, 3, figsize = (3*H, 2*H), sharey = True)
+#        for j in xrange(3):
+#            CUT = EDI.window_cutoff(data, meas, region(j0jL), cutoff1, rf = j)
+#            ttk, xxk, jjk = CUT.realdata(Tmin, Tmax, fcr = fcr)
+#            ax[j].plot(ttk, xxk, marker = '^', linestyle = '', markerfacecolor = 'gray', markersize = 0.8*ms, label = 'training data')
+#                
+#            T, D, pats, samples = K31_diversity(K31data, cutoff1, rf = j)
+#            jj = np.argsort(T)
+#            ax[j].plot(T[jj], D[jj], 'ob', markersize = ms, label='validation data')
+#            ax[j].tick_params(labelsize = .8*fs1)
+#            ax[j].set_xlabel('TI [years]', fontsize = fs1)
+#            ax[j].set_title('codon pos {}'.format(j+1), fontsize = fs1)
+#        ax[0].set_ylabel('diversity', fontsize = fs1)
+#        ax[0].legend(fontsize = 0.8*fs1, loc = 0)
+#        fig.subplots_adjust(wspace = 0.1)
+#        plt.savefig(outdir_name + 'K31_{}_diversity.pdf'.format(reg))
+#        plt.close()

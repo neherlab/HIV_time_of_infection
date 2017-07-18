@@ -69,19 +69,19 @@ if __name__=="__main__":
 #        EDI_plot.maketable_slopes(j0jL, meas, cc, ['LAD', 'LAD_slope'],\
 #        outdir_name + 'table_pol_{}_rf.txt'.format(meas))
 #
-#
-#    #Additional supplementary figures
-#    #distribution of slopes and intercepts
-#    EDI_plot.plot_slope_bootstrap(j0jL, measure, cutoff1,\
-#    outdir_name + 'slope_bootstrap.pdf')
-#
-    # Pearson correlation vs. cutoff
-    cc = np.linspace(.01, .4)
-    EDI_plot.plot_corrcoeff0(j0jL, measures, cc, 
-                             outdir_name + 'pol_corrcoeff.pdf', rf = None)
 
-    EDI_plot.plot_corr_rf(j0jL, measure, cc, 
-                             outdir_name + 'pol_hamming_corr_rf.pdf')
+    #Additional supplementary figures
+    #distribution of slopes and intercepts
+    EDI_plot.plot_slope_bootstrap(j0jL, measure, cutoff1,\
+    outdir_name + 'slope_bootstrap.pdf')
+
+#    # Pearson correlation vs. cutoff
+#    cc = np.linspace(.01, .4)
+#    EDI_plot.plot_corrcoeff0(j0jL, measures, cc, 
+#                             outdir_name + 'pol_corrcoeff.pdf', rf = None)
+#
+#    EDI_plot.plot_corr_rf(j0jL, measure, cc, 
+#                             outdir_name + 'pol_hamming_corr_rf.pdf')
 
     t1 = time.time()
     print t1 - t0
