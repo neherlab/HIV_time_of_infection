@@ -12,8 +12,8 @@ import os, sys
 import EDI_functions as EDI
 import TI_predictor as TI
 from datetime import datetime
-#import seaborn as sns
-#sns.set(style = 'darkgrid', font = u'Verdana')
+import seaborn as sns
+sns.set(style = 'darkgrid', font = u'Verdana')
 
 
 # constants
@@ -59,19 +59,19 @@ def translate_measures(measure):
     funcnames = ['ambiguous_above', 'hamming_above', 'entropy_above']
     return funcnames[names.index(measure)]
 
-def ttest_region(func_name, j0jL, cutoff, method, rf = rframe):
-    CUT = EDI.window_cutoff(data, func_name, region(j0jL), cutoff, rf = rf)
-    print CUT.ttk.shape
-    ttk, xxk, jjk = CUT.realdata(Tmin, Tmax,  fcr = fcr, vload_min = vload_min,
-                                 dilutions_min = dilutions_min)
-    ttk_est = np.zeros(ttk.shape)
-    dtdx_t0 = np.zeros((Npat, 2))
-    for jpat in xrange(Npat):
-        idx_pat = np.where(jjk == jpat)[0]
-        idx_data = np.where(jjk != jpat)[0]
-        ttk_data, dtdx_t0[jpat,:] = EDI.fitmeth_byname(ttk[idx_data], xxk[idx_data], method = method)
-        ttk_est[idx_pat] = dtdx_t0[jpat,0]*xxk[idx_pat] + dtdx_t0[jpat,1]
-    return ttk_est, ttk, xxk, jjk, dtdx_t0
+#def ttest_region(func_name, j0jL, cutoff, method, rf = rframe):
+#    CUT = EDI.window_cutoff(data, func_name, region(j0jL), cutoff, rf = rf)
+#    print CUT.ttk.shape
+#    ttk, xxk, jjk = CUT.realdata(Tmin, Tmax,  fcr = fcr, vload_min = vload_min,
+#                                 dilutions_min = dilutions_min)
+#    ttk_est = np.zeros(ttk.shape)
+#    dtdx_t0 = np.zeros((Npat, 2))
+#    for jpat in xrange(Npat):
+#        idx_pat = np.where(jjk == jpat)[0]
+#        idx_data = np.where(jjk != jpat)[0]
+#        ttk_data, dtdx_t0[jpat,:] = EDI.fitmeth_byname(ttk[idx_data], xxk[idx_data], method = method)
+#        ttk_est[idx_pat] = dtdx_t0[jpat,0]*xxk[idx_pat] + dtdx_t0[jpat,1]
+#    return ttk_est, ttk, xxk, jjk, dtdx_t0
 
 
 def loadK31(reg, filepath, fromHIV = False):
@@ -140,6 +140,14 @@ def K31_diversity(data, cutoff, rf = rframe, fcr = 0.5):
 #        idx = np.where(np.max(af, axis = 0) <= 1. - cutoff)[0]
 #        DD[j] = np.mean(1. - np.ma.sum(af[:,idx]**2, axis = 0))
     return np.array(TT)/365.25, np.array(DD), pats, samples
+
+def prob_bins(bins, lamb):
+    Pbins = .5*np.abs(np.exp(-np.abs(bins[:-1])/lamb) - np.exp(-np.abs(bins[1:])/lamb))
+    j = np.where((bins[:-1] <0)*(bins[1:]>0))[0]
+    if j:
+        Pbins[j] = .5*(np.exp(bins[:-1][j]/lamb) + np.exp(-bins[1:][j]/lamb))
+    return Pbins
+    
          
 if __name__=="__main__":
     '''Predicting infection dates for the 31 additional patients'''
@@ -197,6 +205,8 @@ if __name__=="__main__":
             ax.plot(TT, TTest, 'ob', markersize = 12, label = 'validation data')
             ax.legend(fontsize = 0.8*fs, loc = 0)
         ax.plot(np.sort(ttk), np.sort(ttk), linestyle = '--', color = 'gray')
+#        ax.plot(np.sort(ttk), 2.*np.sort(ttk), linestyle = ':', color = 'gray')
+#        ax.plot(np.sort(ttk), .5*np.sort(ttk), linestyle = ':', color = 'gray')
         ax.set_xlabel('TI [years]', fontsize = fs)
         ax.set_ylabel('ETI [years]', fontsize = fs)
         ax.tick_params(labelsize = .8*fs)
@@ -204,15 +214,15 @@ if __name__=="__main__":
         plt.savefig(outdir_name + 'K31_{}_ETIvsTI_rf2.pdf'.format(reg))
         plt.close()
 
-#        dTT = TTest - TT
-#        dTTmin = np.min(dTT)//1
-#        dTTmax = np.max(dTT)//1 + 1.
-#        TTbins = np.linspace(dTTmin, dTTmax, 2*int(dTTmax - dTTmin) +1)
+        dTT = TTest - TT
+        dTTmin = np.min(dTT)//1
+        dTTmax = np.max(dTT)//1 + 1.
+        TTbins = np.linspace(dTTmin, dTTmax, 2*int(dTTmax - dTTmin) +1)
         fig, ax = plt.subplots(1,1, figsize = (H, H))
-        ax.hist(ttk_est[jj]-ttk[jj], alpha = 0.5, color = 'gray', label = 'training data')
-        ax.hist(TTest - TT, alpha = 0.5, color = 'b', label = 'validation data')
-#        ax.hist(ttk_est[jj]-ttk[jj], bins = TTbins, alpha = 0.5, color = 'gray', label = 'training data')
-#        ax.hist(TTest - TT, bins = TTbins, alpha = 0.5, color = 'b', label = 'validation data')
+#        ax.hist(ttk_est[jj]-ttk[jj], alpha = 0.5, color = 'gray', label = 'training data')
+#        ax.hist(TTest - TT, alpha = 0.5, color = 'b', label = 'validation data')
+        ax.hist(ttk_est-ttk, bins = TTbins, color = 'gray', label = 'training data')
+        ax.hist(TTest - TT, bins = TTbins, alpha = 0.5, color = 'b', label = 'validation data')
         ax.legend(fontsize = 0.8*fs, loc = 0)
         ax.set_xlabel('ETI - TI [years]', fontsize = fs)
         ax.tick_params(labelsize = .8*fs)
@@ -220,15 +230,28 @@ if __name__=="__main__":
         plt.savefig(outdir_name + 'K31_{}_hist_rf2.pdf'.format(reg))
         plt.close()
         
-        Nover = np.count_nonzero(ttk_est - ttk > 1.)
-        Nunder = np.count_nonzero(ttk - ttk_est > 1.)
-        Nall = ttk.shape[0]
-        print Nover, Nunder, Nall, Nover/Nall, Nunder/Nall
         
-        Nover = np.count_nonzero(TTest - TT > 1.)
-        Nunder = np.count_nonzero(TT - TTest > 1.)
-        Nall = TT.shape[0]
-        print Nover, Nunder, Nall, Nover/Nall, Nunder/Nall
+        fig, ax = plt.subplots(1,1, figsize = (H, H))
+        nn, bins = np.histogram(ttk_est-ttk, bins = TTbins)
+        cbins = (bins[:-1] + bins[1:])/2.
+        lamb = np.mean(np.abs(ttk_est-ttk))
+        Pbins = prob_bins(bins, lamb)
+        ax.plot((bins[:-1] + bins[1:])/2., nn, marker = 'd', color = 'gray', label = 'training data')
+        ax.plot(cbins, np.sum(nn)*Pbins, linestyle = '--', color = 'gray')
+#        ax.hist(ttk_est[jj]-ttk[jj], alpha = 0.5, color = 'gray', label = 'training data')
+        nn, bins = np.histogram(TTest-TT, bins = TTbins)
+        cbins = (bins[:-1] + bins[1:])/2.
+        lamb = np.mean(np.abs(TTest-TT))
+        Pbins = prob_bins(bins, lamb)
+        ax.plot(cbins, nn, marker = 'o', color = 'b', label = 'validation data')
+        ax.plot(cbins, np.sum(nn)*Pbins, '--b')
+        ax.legend(fontsize = 0.8*fs, loc = 0)
+        ax.set_xlabel('ETI - TI [years]', fontsize = fs)
+        ax.tick_params(labelsize = .8*fs)
+        fig.tight_layout()
+        plt.savefig(outdir_name + 'K31_{}_hist_rf2_tmp.pdf'.format(reg))
+        plt.close()
+        
         
         fig, ax = plt.subplots(1,1, figsize = (2*H, 2*H))
         ax.plot(ttk, xxk, linestyle = '', marker = '^', markersize = 0.8*ms, markerfacecolor = 'gray', label = 'training data')
@@ -250,20 +273,68 @@ if __name__=="__main__":
         plt.close()
         
         
-#        fig, ax = plt.subplots(1, 3, figsize = (3*H, 2*H), sharey = True)
-#        for j in xrange(3):
-#            CUT = EDI.window_cutoff(data, meas, region(j0jL), cutoff1, rf = j)
-#            ttk, xxk, jjk = CUT.realdata(Tmin, Tmax, fcr = fcr)
-#            ax[j].plot(ttk, xxk, marker = '^', linestyle = '', markerfacecolor = 'gray', markersize = 0.8*ms, label = 'training data')
-#                
-#            T, D, pats, samples = K31_diversity(K31data, cutoff1, rf = j)
-#            jj = np.argsort(T)
-#            ax[j].plot(T[jj], D[jj], 'ob', markersize = ms, label='validation data')
-#            ax[j].tick_params(labelsize = .8*fs1)
-#            ax[j].set_xlabel('TI [years]', fontsize = fs1)
-#            ax[j].set_title('codon pos {}'.format(j+1), fontsize = fs1)
-#        ax[0].set_ylabel('diversity', fontsize = fs1)
-#        ax[0].legend(fontsize = 0.8*fs1, loc = 0)
-#        fig.subplots_adjust(wspace = 0.1)
-#        plt.savefig(outdir_name + 'K31_{}_diversity.pdf'.format(reg))
-#        plt.close()
+        # Outliers        
+#        Nover = np.count_nonzero(ttk_est - ttk > 1.)
+#        Nunder = np.count_nonzero(ttk - ttk_est > 1.)
+#        Nall = ttk.shape[0]
+#        print Nover, Nunder, Nall, Nover/Nall, Nunder/Nall
+#        
+#        Nover = np.count_nonzero(TTest - TT > 1.)
+#        Nunder = np.count_nonzero(TT - TTest > 1.)
+#        Nall = TT.shape[0]
+#        print Nover, Nunder, Nall, Nover/Nall, Nunder/Nall
+        
+        fig, ax = plt.subplots(1,3, figsize = (3*H,H))
+        dTT = np.abs(TTest - TT)
+        jjT = np.argsort(dTT)
+        dttk = np.abs(ttk_est-ttk)
+        jjt = np.argsort(dttk)
+        ax[0].plot(dTT[jjT], 1. - np.arange(1, TT.shape[0]+1)/TT.shape[0])
+        ax[0].plot(dttk[jjt], 1. - np.arange(1, ttk.shape[0]+1)/ttk.shape[0])
+        ax[0].set_xlabel('|ETI - TI| [years]', fontsize = fs)
+            
+        dTT = TTest - TT
+        dTT = dTT[np.where(dTT >0)]
+        jjT = np.argsort(dTT)
+        dttk = ttk_est-ttk
+        dttk = dttk[np.where(dttk >0)]
+        jjt = np.argsort(dttk)
+        ax[1].plot(dTT[jjT], np.arange(dTT.shape[0], 0, -1)/TT.shape[0])
+        ax[1].plot(dttk[jjt], np.arange(dttk.shape[0], 0, -1)/ttk.shape[0])
+        ax[1].set_xlabel('ETI - TI [years]', fontsize = fs)
+        
+        dTT = TT - TTest
+        dTT = dTT[np.where(dTT >0)]
+        jjT = np.argsort(dTT)
+        dttk = ttk -ttk_est
+        dttk = dttk[np.where(dttk >0)]
+        jjt = np.argsort(dttk)
+        ax[2].plot(dTT[jjT], np.arange(dTT.shape[0], 0, -1)/TT.shape[0])
+        ax[2].plot(dttk[jjt], np.arange(dttk.shape[0], 0, -1)/ttk.shape[0])
+        ax[2].set_xlabel('TI - ETI [years]', fontsize = fs)
+        for j in xrange(3):
+            ax[j].set_ylabel('fraction')
+        plt.savefig(outdir_name + 'K31_{}_Nout.pdf'.format(reg))
+        
+        
+        # diversity by codon position
+        fig, ax = plt.subplots(1, 3, figsize = (3*H, 2*H), sharey = True)
+        for j in xrange(3):
+            CUT = EDI.window_cutoff(data, meas, region(j0jL), cutoff1, rf = j)
+            ttk, xxk, jjk = CUT.realdata(Tmin, Tmax, fcr = fcr)
+            ax[j].plot(ttk, xxk, marker = '^', linestyle = '', markerfacecolor = 'gray', markersize = 0.8*ms, label = 'training data')
+                
+            T, D, pats, samples = K31_diversity(K31data, cutoff1, rf = j)
+            jj = np.argsort(T)
+            ax[j].plot(T[jj], D[jj], 'ob', markersize = ms, label='validation data')
+            ax[j].tick_params(labelsize = .8*fs1)
+            ax[j].set_xlabel('TI [years]', fontsize = fs1)
+            ax[j].set_title('codon pos {}'.format(j+1), fontsize = fs1)
+        ax[0].set_ylabel('diversity', fontsize = fs1)
+        ax[0].legend(fontsize = 0.8*fs1, loc = 0)
+        fig.subplots_adjust(wspace = 0.1)
+        plt.savefig(outdir_name + 'K31_{}_diversity.pdf'.format(reg))
+        plt.close()
+        
+
+        
