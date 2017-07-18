@@ -161,9 +161,9 @@ if __name__=="__main__":
     #Creating figures for the manuscript
     measure = 'diversity'
     meas = translate_measures(measure)
-    cutoff1 = 0.001
+    cutoff1 = 0.002
     bypairs = True
-    pairs_legend = True
+    pairs_legend = False
 #    reg = 'pol'
     for reg in ['gag', 'pol']:
         print reg
@@ -274,48 +274,38 @@ if __name__=="__main__":
         
         
         # Outliers        
-#        Nover = np.count_nonzero(ttk_est - ttk > 1.)
-#        Nunder = np.count_nonzero(ttk - ttk_est > 1.)
-#        Nall = ttk.shape[0]
-#        print Nover, Nunder, Nall, Nover/Nall, Nunder/Nall
-#        
-#        Nover = np.count_nonzero(TTest - TT > 1.)
-#        Nunder = np.count_nonzero(TT - TTest > 1.)
-#        Nall = TT.shape[0]
-#        print Nover, Nunder, Nall, Nover/Nall, Nunder/Nall
-        
-        fig, ax = plt.subplots(1,3, figsize = (3*H,H))
+        fig, ax = plt.subplots(1,1, figsize = (H,H), sharey = True)
         dTT = np.abs(TTest - TT)
-        jjT = np.argsort(dTT)
         dttk = np.abs(ttk_est-ttk)
-        jjt = np.argsort(dttk)
-        ax[0].plot(dTT[jjT], 1. - np.arange(1, TT.shape[0]+1)/TT.shape[0])
-        ax[0].plot(dttk[jjt], 1. - np.arange(1, ttk.shape[0]+1)/ttk.shape[0])
-        ax[0].set_xlabel('|ETI - TI| [years]', fontsize = fs)
-            
+        dTmax = np.max(np.concatenate((dTT, dttk)))//1 + 1
+        Tbins = np.linspace(0., dTmax, 2*int(dTmax) + 1)
+        nn, bins = np.histogram(dTT, Tbins)
+        ax.plot(bins[1:], 1. - np.cumsum(nn)/TT.shape[0])
+        nn, bins = np.histogram(dttk, Tbins)
+        ax.plot(bins[1:], 1. - np.cumsum(nn)/ttk.shape[0])
+               
         dTT = TTest - TT
-        dTT = dTT[np.where(dTT >0)]
-        jjT = np.argsort(dTT)
+        dTT = dTT[np.where(dTT >=0)]
+        nn, bins = np.histogram(dTT, Tbins)
+        ax.plot(bins[1:], (np.sum(nn) - np.cumsum(nn))/TT.shape[0], '--b')
         dttk = ttk_est-ttk
-        dttk = dttk[np.where(dttk >0)]
-        jjt = np.argsort(dttk)
-        ax[1].plot(dTT[jjT], np.arange(dTT.shape[0], 0, -1)/TT.shape[0])
-        ax[1].plot(dttk[jjt], np.arange(dttk.shape[0], 0, -1)/ttk.shape[0])
-        ax[1].set_xlabel('ETI - TI [years]', fontsize = fs)
+        dttk = dttk[np.where(dttk >=0)]
+        nn, bins = np.histogram(dttk, Tbins)
+        ax.plot(bins[1:],  (np.sum(nn) - np.cumsum(nn))/ttk.shape[0], '--g')
         
         dTT = TT - TTest
         dTT = dTT[np.where(dTT >0)]
-        jjT = np.argsort(dTT)
-        dttk = ttk -ttk_est
+        nn, bins = np.histogram(dTT, Tbins)
+        ax.plot(bins[1:], (np.sum(nn) - np.cumsum(nn))/TT.shape[0], ':b')
+        dttk = ttk-ttk_est
         dttk = dttk[np.where(dttk >0)]
-        jjt = np.argsort(dttk)
-        ax[2].plot(dTT[jjT], np.arange(dTT.shape[0], 0, -1)/TT.shape[0])
-        ax[2].plot(dttk[jjt], np.arange(dttk.shape[0], 0, -1)/ttk.shape[0])
-        ax[2].set_xlabel('TI - ETI [years]', fontsize = fs)
-        for j in xrange(3):
-            ax[j].set_ylabel('fraction')
-        plt.savefig(outdir_name + 'K31_{}_Nout.pdf'.format(reg))
+        nn, bins = np.histogram(dttk, Tbins)
+        ax.plot(bins[1:], (np.sum(nn) - np.cumsum(nn))/ttk.shape[0], ':g')
         
+        ax.set_xlabel('|ETI - TI| [years]', fontsize = fs)
+        ax.set_ylabel('fraction')
+#        ax.set_ylim((0.,1.))
+        plt.savefig(outdir_name + 'K31_{}_Nout.pdf'.format(reg))
         
         # diversity by codon position
         fig, ax = plt.subplots(1, 3, figsize = (3*H, 2*H), sharey = True)
