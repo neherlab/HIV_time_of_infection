@@ -22,7 +22,6 @@ fcr = 0.5
 Tmin = 0; Tmax = 9
 vload_min = None
 dilutions_min = None
-method = 'LAD'
 rframe = 2 #reference frame; set to None to use all sites
 
 fs = 28
@@ -32,49 +31,21 @@ H = 8
 cols = ['b', 'g','r','c', 'y', 'm']
 marks = ['o', 's', '^', 'd', '*', 'p', 'v', '<', '>', '1', '2', '3', '4', '*', 'h', '+', 'x']
 ms = 10
-# The genome annotations
-datapath = './Frequency_Data/'
-head = ['name', 'x1', 'x2', 'width', 'ri']
-annot = []
-with open(datapath + 'annotations.txt', 'r') as fhandle:
-    for line in fhandle:
-        l = [x if j ==0 else int(x) for j, x in enumerate(line.split())]
-        annot.append({name: l[j] for j, name in enumerate(head)})
-coords = {anno['name']: (anno['x1'], anno['x2']) for anno in annot}
-feas = ['gag', 'pol', 'env']
-
-
-#loading frequency data
-data = EDI.load_patient_data(patient_names = 'all', filepath = datapath)
-Npat = len(data['pat_names'])
-
-def region(j0jL):
-    if type(j0jL) is str:
-        return coords[j0jL]
-    else:
-        return j0jL
 
 def translate_measures(measure):
     names = ['polymorphic', 'diversity', 'entropy']
     funcnames = ['ambiguous_above', 'hamming_above', 'entropy_above']
     return funcnames[names.index(measure)]
 
-#def ttest_region(func_name, j0jL, cutoff, method, rf = rframe):
-#    CUT = EDI.window_cutoff(data, func_name, region(j0jL), cutoff, rf = rf)
-#    print CUT.ttk.shape
-#    ttk, xxk, jjk = CUT.realdata(Tmin, Tmax,  fcr = fcr, vload_min = vload_min,
-#                                 dilutions_min = dilutions_min)
-#    ttk_est = np.zeros(ttk.shape)
-#    dtdx_t0 = np.zeros((Npat, 2))
-#    for jpat in xrange(Npat):
-#        idx_pat = np.where(jjk == jpat)[0]
-#        idx_data = np.where(jjk != jpat)[0]
-#        ttk_data, dtdx_t0[jpat,:] = EDI.fitmeth_byname(ttk[idx_data], xxk[idx_data], method = method)
-#        ttk_est[idx_pat] = dtdx_t0[jpat,0]*xxk[idx_pat] + dtdx_t0[jpat,1]
-#    return ttk_est, ttk, xxk, jjk, dtdx_t0
-
-
 def loadK31(reg, filepath, fromHIV = False):
+    '''
+    Loading data for 31 additional patients
+    
+    Input arguments:
+    reg: name of genetic region (gag or pol)
+    filepath: path to directory where the frequency data are to be stored/downloaded
+    fromHIV: download raw data and store them, if True; use stored data, if False 
+    '''
     data = {}
     if fromHIV:
         sys.path.append("/scicore/home/neher/neher/HIV/hivwholeseq")    
@@ -122,8 +93,6 @@ def K31_diversity(data, cutoff, rf = rframe, fcr = 0.5):
     samples = []
     for j, key in enumerate(data.keys()):
         (Tloc, af) = data[key]
-#        if np.sum(af.mask) > 0:
-#            print key, np.mean(np.sum(af.mask, axis =0) >0)
         if np.mean(np.sum(af.mask, axis=0)>0) > fcr:
             print 'Omitting {}'.format(key)
             continue
@@ -137,8 +106,6 @@ def K31_diversity(data, cutoff, rf = rframe, fcr = 0.5):
         j = key.rfind('_')
         pats.append(key[:j])
         samples.append(key[j+1:])
-#        idx = np.where(np.max(af, axis = 0) <= 1. - cutoff)[0]
-#        DD[j] = np.mean(1. - np.ma.sum(af[:,idx]**2, axis = 0))
     return np.array(TT)/365.25, np.array(DD), pats, samples
 
 def prob_bins(bins, lamb):
@@ -157,29 +124,28 @@ if __name__=="__main__":
     outdir_name = './plotK31/'
     if not os.path.exists(outdir_name):
         os.makedirs(outdir_name)
-
+    
     #Creating figures for the manuscript
     measure = 'diversity'
     meas = translate_measures(measure)
     cutoff1 = 0.002
-    bypairs = True
-    pairs_legend = False
-#    reg = 'pol'
+    bypairs = True #join points belonging to the same patient
+    pairs_legend = False #add patient codes to plots
     for reg in ['gag', 'pol']:
         print reg
-        j0jL = coords[reg]
+        j0jL = TI.region(reg)
     
         #Loading and processing the training set data (11 patients)
-        CUT = EDI.window_cutoff(data, meas, region(j0jL), cutoff1, rf = rframe)
+        CUT = EDI.window_cutoff(TI.data, meas, j0jL, cutoff1, rf = rframe)
         ttk, xxk, jjk = CUT.realdata(Tmin, Tmax,  fcr = fcr, vload_min = vload_min,
                                  dilutions_min = dilutions_min)
-        ttk_est, dtdx = TI.TI_from_diversity(xxk, j0jL, cutoff1, rf = rframe)
+        ttk_est, dtdx = TI.TI_from_diversity(xxk, reg, cutoff1, rf = rframe)
         
         
         #Loading and processing the validation dataset data (31 patients)
         K31data = loadK31(reg, './K31_data/{}/'.format(reg), fromHIV = False)
         TT, DD, pats, samples = K31_diversity(K31data, cutoff1)
-        TTest, dtdx_t0 = TI.TI_from_diversity(DD, j0jL, cutoff1, rf = rframe)
+        TTest, dtdx_t0 = TI.TI_from_diversity(DD, reg, cutoff1, rf = rframe)
         
         TTmax = np.max(TT)
         jj = np.where(ttk <= TTmax)        
@@ -189,14 +155,12 @@ if __name__=="__main__":
             cc = cols*f
             mm = [s for s in marks[:f] for j in xrange(len(cols))]
             pairs = [[j for j, p in enumerate(pats) if p ==pat] for pat in pats_unique]
-#            print len(pats_unique)
-#            print pairs
         
         
+        #Plot of predicted vs. "true" times since infection (ETI vs. TI) 
         fig, ax = plt.subplots(1,1, figsize = (H, H))
         ax.plot(ttk, ttk_est, linestyle = '', marker = '^', markersize = 0.8*ms, markerfacecolor = 'gray', label = 'training data')
         if bypairs:
-#            ax.plot(TT, TTest, 'ob', markersize = 12, label = 'validation data')
             for jp, p in enumerate(pairs):
                 ax.plot(TT[p], TTest[p], ':' + mm[jp] + cc[jp], markersize = ms, label = pats_unique[jp])
             if pairs_legend:
@@ -205,8 +169,6 @@ if __name__=="__main__":
             ax.plot(TT, TTest, 'ob', markersize = 12, label = 'validation data')
             ax.legend(fontsize = 0.8*fs, loc = 0)
         ax.plot(np.sort(ttk), np.sort(ttk), linestyle = '--', color = 'gray')
-#        ax.plot(np.sort(ttk), 2.*np.sort(ttk), linestyle = ':', color = 'gray')
-#        ax.plot(np.sort(ttk), .5*np.sort(ttk), linestyle = ':', color = 'gray')
         ax.set_xlabel('TI [years]', fontsize = fs)
         ax.set_ylabel('ETI [years]', fontsize = fs)
         ax.tick_params(labelsize = .8*fs)
@@ -214,13 +176,13 @@ if __name__=="__main__":
         plt.savefig(outdir_name + 'K31_{}_ETIvsTI_rf2.pdf'.format(reg))
         plt.close()
 
+
+        #Plot distribution of absolute errors 
         dTT = TTest - TT
         dTTmin = np.min(dTT)//1
         dTTmax = np.max(dTT)//1 + 1.
         TTbins = np.linspace(dTTmin, dTTmax, 2*int(dTTmax - dTTmin) +1)
         fig, ax = plt.subplots(1,1, figsize = (H, H))
-#        ax.hist(ttk_est[jj]-ttk[jj], alpha = 0.5, color = 'gray', label = 'training data')
-#        ax.hist(TTest - TT, alpha = 0.5, color = 'b', label = 'validation data')
         ax.hist(ttk_est-ttk, bins = TTbins, color = 'gray', label = 'training data')
         ax.hist(TTest - TT, bins = TTbins, alpha = 0.5, color = 'b', label = 'validation data')
         ax.legend(fontsize = 0.8*fs, loc = 0)
@@ -231,86 +193,10 @@ if __name__=="__main__":
         plt.close()
         
         
-        fig, ax = plt.subplots(1,1, figsize = (H, H))
-        nn, bins = np.histogram(ttk_est-ttk, bins = TTbins)
-        cbins = (bins[:-1] + bins[1:])/2.
-        lamb = np.mean(np.abs(ttk_est-ttk))
-        Pbins = prob_bins(bins, lamb)
-        ax.plot((bins[:-1] + bins[1:])/2., nn, marker = 'd', color = 'gray', label = 'training data')
-        ax.plot(cbins, np.sum(nn)*Pbins, linestyle = '--', color = 'gray')
-#        ax.hist(ttk_est[jj]-ttk[jj], alpha = 0.5, color = 'gray', label = 'training data')
-        nn, bins = np.histogram(TTest-TT, bins = TTbins)
-        cbins = (bins[:-1] + bins[1:])/2.
-        lamb = np.mean(np.abs(TTest-TT))
-        Pbins = prob_bins(bins, lamb)
-        ax.plot(cbins, nn, marker = 'o', color = 'b', label = 'validation data')
-        ax.plot(cbins, np.sum(nn)*Pbins, '--b')
-        ax.legend(fontsize = 0.8*fs, loc = 0)
-        ax.set_xlabel('ETI - TI [years]', fontsize = fs)
-        ax.tick_params(labelsize = .8*fs)
-        fig.tight_layout()
-        plt.savefig(outdir_name + 'K31_{}_hist_rf2_tmp.pdf'.format(reg))
-        plt.close()
-        
-        
-        fig, ax = plt.subplots(1,1, figsize = (2*H, 2*H))
-        ax.plot(ttk, xxk, linestyle = '', marker = '^', markersize = 0.8*ms, markerfacecolor = 'gray', label = 'training data')
-        if bypairs:
-            for jp, p in enumerate(pairs):
-                ax.plot(TT[p], DD[p], ':' + mm[jp] + cc[jp], markersize = 12, label = pats_unique[jp])
-            if pairs_legend:
-                ax.legend(fontsize = 0.4*fs, loc = 0)
-        else:
-            ax.plot(TT, DD, 'ob', markersize = 12, label = 'validation data')
-            ax.legend(loc = 0, fontsize = 0.8*fs)
-        ax.plot(dtdx_t0[0]*np.sort(xxk) + dtdx_t0[1], np.sort(xxk), linestyle = '--', color = 'gray')
-        ax.set_xlabel('TI [years]', fontsize = fs)
-        ax.set_ylabel('diversity', fontsize = fs)
-        ax.tick_params(labelsize = .8*fs)
-        fig.tight_layout()
-        plt.savefig(outdir_name + 'K31_{}_diversity_bypat_rf2.pdf'.format(reg))
-#        plt.savefig(outdir_name + 'K31_{}_diversity_bypat_rf2_N{}.pdf'.format(reg, len(pats_unique)))
-        plt.close()
-        
-        
-        # Outliers        
-        fig, ax = plt.subplots(1,1, figsize = (H,H), sharey = True)
-        dTT = np.abs(TTest - TT)
-        dttk = np.abs(ttk_est-ttk)
-        dTmax = np.max(np.concatenate((dTT, dttk)))//1 + 1
-        Tbins = np.linspace(0., dTmax, 2*int(dTmax) + 1)
-        nn, bins = np.histogram(dTT, Tbins)
-        ax.plot(bins[1:], 1. - np.cumsum(nn)/TT.shape[0])
-        nn, bins = np.histogram(dttk, Tbins)
-        ax.plot(bins[1:], 1. - np.cumsum(nn)/ttk.shape[0])
-               
-        dTT = TTest - TT
-        dTT = dTT[np.where(dTT >=0)]
-        nn, bins = np.histogram(dTT, Tbins)
-        ax.plot(bins[1:], (np.sum(nn) - np.cumsum(nn))/TT.shape[0], '--b')
-        dttk = ttk_est-ttk
-        dttk = dttk[np.where(dttk >=0)]
-        nn, bins = np.histogram(dttk, Tbins)
-        ax.plot(bins[1:],  (np.sum(nn) - np.cumsum(nn))/ttk.shape[0], '--g')
-        
-        dTT = TT - TTest
-        dTT = dTT[np.where(dTT >0)]
-        nn, bins = np.histogram(dTT, Tbins)
-        ax.plot(bins[1:], (np.sum(nn) - np.cumsum(nn))/TT.shape[0], ':b')
-        dttk = ttk-ttk_est
-        dttk = dttk[np.where(dttk >0)]
-        nn, bins = np.histogram(dttk, Tbins)
-        ax.plot(bins[1:], (np.sum(nn) - np.cumsum(nn))/ttk.shape[0], ':g')
-        
-        ax.set_xlabel('|ETI - TI| [years]', fontsize = fs)
-        ax.set_ylabel('fraction')
-#        ax.set_ylim((0.,1.))
-        plt.savefig(outdir_name + 'K31_{}_Nout.pdf'.format(reg))
-        
-        # diversity by codon position
+        #Plot diversity by codon position vs. time
         fig, ax = plt.subplots(1, 3, figsize = (3*H, 2*H), sharey = True)
         for j in xrange(3):
-            CUT = EDI.window_cutoff(data, meas, region(j0jL), cutoff1, rf = j)
+            CUT = EDI.window_cutoff(TI.data, meas, j0jL, cutoff1, rf = j)
             ttk, xxk, jjk = CUT.realdata(Tmin, Tmax, fcr = fcr)
             ax[j].plot(ttk, xxk, marker = '^', linestyle = '', markerfacecolor = 'gray', markersize = 0.8*ms, label = 'training data')
                 
