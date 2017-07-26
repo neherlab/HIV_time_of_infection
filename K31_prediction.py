@@ -150,6 +150,90 @@ def prob_bins(bins, lamb):
         Pbins[j] = .5*(np.exp(bins[:-1][j]/lamb) + np.exp(-bins[1:][j]/lamb))
     return Pbins
     
+#def K31_ETIvsTI_plot(ax, K31results, label_type, show_legend = True):
+#    (TT, TTest, pats, samples) = K31results
+#    meta = pd.read_csv('./K31_data/patients.csv')
+#    meta_sample = pd.read_csv('./K31_data/sample_timeline_sequenced.csv')
+#    meta_table = pd.read_excel('./K31_data/Suppl table 31 patients true TI 170629.xlsx', skiprows = 2)
+#    if label_type in ['id', 'route', 'subtype']:
+#        pats_unique = list(set(pats))
+#        f = (len(pats_unique)//len(cols)+1)
+#        cc = cols*f
+#        mm = [s for s in marks[:f] for j in xrange(len(cols))]
+#        pairs = [[j for j, p in enumerate(pats) if p ==pat] for pat in pats_unique]
+#        for jp, p in enumerate(pairs):
+#            if label_type == 'id':
+#                lab = pats_unique[jp]
+#            elif label_type == 'route':
+#                lab = meta.at[np.where(meta['id'] == pats_unique[jp])[0][0], 'transmission route']
+#            elif label_type == 'subtype':
+#                lab = meta_table.at[np.where(meta['id'] == pats_unique[jp])[0][0], 'HIV-1 subtyp']
+#                
+#            ax.plot(TT[p], TTest[p], ':' + mm[jp] + cc[jp], markersize = ms, label = lab)
+#        if show_legend:
+#            ax.legend(fontsize = 0.4*fs, loc = 0)
+#            ax.set_title(label_type, fontsize = fs)
+#    elif label_type in ['samples', 'templates', 'dilutions']:
+#        f = (len(pats)//len(cols)+1)
+#        cc = cols*f
+#        mm = [s for s in marks[:f] for j in xrange(len(cols))]
+#        for j, sample in enumerate(samples):
+#            if label_type == 'samples':
+#                lab = sample
+#            elif label_type == 'templates':
+#                lab = meta_sample.at[np.where(meta_sample['id'] == sample)[0][0], 'templates approx']
+#            elif label_type == 'dilutions':
+#                lab = meta_sample.at[np.where(meta_sample['id'] == sample)[0][0], 'dilutions']
+#            ax.plot(TT[j], TTest[j], mm[j] + cc[j], markersize = ms, label = lab)
+#        if show_legend:
+#            ax.legend(fontsize = 0.3*fs, loc = 0, ncol = 3)
+#    else:
+#        ax.plot(TT, TTest, 'ob', markersize = 12, label = 'validation data')
+#    return ax
+
+
+def K31_ETIvsTI_plot(ax, K31results, label_type, show_legend = True):
+    (TT, TTest, pats, samples) = K31results
+#    meta = pd.read_csv('./K31_data/patients.csv')
+#    meta_sample = pd.read_csv('./K31_data/sample_timeline_sequenced.csv')
+#    meta_table = pd.read_excel('./K31_data/Suppl table 31 patients true TI 170629.xlsx', skiprows = 2)
+    if label_type in ['id', 'route', 'subtype']:
+        meta = pd.read_csv('./K31_data/meta_patients.csv')
+        pats_unique = list(set(pats))
+        f = (len(pats_unique)//len(cols)+1)
+        cc = cols*f
+        mm = [s for s in marks[:f] for j in xrange(len(cols))]
+        pairs = [[j for j, p in enumerate(pats) if p ==pat] for pat in pats_unique]
+        for jp, p in enumerate(pairs):
+            if label_type == 'id':
+                lab = pats_unique[jp]
+            elif label_type == 'route':
+                lab = meta.at[np.where(meta['id'] == pats_unique[jp])[0][0], 'transmission route']
+            elif label_type == 'subtype':
+                lab = meta.at[np.where(meta['id'] == pats_unique[jp])[0][0], 'subtype']
+                
+            ax.plot(TT[p], TTest[p], ':' + mm[jp] + cc[jp], markersize = ms, label = lab)
+        if show_legend:
+            ax.legend(fontsize = 0.4*fs, loc = 0)
+            ax.set_title(label_type, fontsize = fs)
+    elif label_type in ['samples', 'templates', 'dilutions']:
+        meta = pd.read_csv('./K31_data/meta_samples.csv')
+        f = (len(pats)//len(cols)+1)
+        cc = cols*f
+        mm = [s for s in marks[:f] for j in xrange(len(cols))]
+        for j, sample in enumerate(samples):
+            if label_type == 'samples':
+                lab = sample
+            elif label_type == 'templates':
+                lab = meta.at[np.where(meta['id'] == sample)[0][0], 'templates approx']
+            elif label_type == 'dilutions':
+                lab = meta.at[np.where(meta['id'] == sample)[0][0], 'dilutions']
+            ax.plot(TT[j], TTest[j], mm[j] + cc[j], markersize = ms, label = lab)
+        if show_legend:
+            ax.legend(fontsize = 0.3*fs, loc = 0, ncol = 3)
+    else:
+        ax.plot(TT, TTest, 'ob', markersize = 12, label = 'validation data')
+    return ax
          
 if __name__=="__main__":
     '''Predicting infection dates for the 31 additional patients'''
@@ -166,8 +250,19 @@ if __name__=="__main__":
     cutoff1 = 0.002
     bypairs = False
     pairs_legend = True
-    label_type = 'templates' #'subtype' #'dilutions' #'templates' #'route' #'id'
+    label_type = 'id' #'templates' #'subtype' #'dilutions' #'templates' #'route' #'id'
 #    reg = 'pol'
+    
+#    meta = pd.read_csv('./K31_data/patients.csv', usecols = ['id', 'transmission route'])
+#    meta_sample = pd.read_csv('./K31_data/sample_timeline_sequenced.csv', usecols = ['id', 'patient', 'templates approx', 'dilutions'])
+#    meta_table = pd.read_excel('./K31_data/Suppl table 31 patients true TI 170629.xlsx', skiprows = 2)
+#
+#    meta_sample.to_csv(path_or_buf = './K31_data/meta_samples.csv', index = False)
+#    df = meta.copy()
+#    df['subtype'] = [meta_table.at[np.where(meta['id'] == pat)[0][0], 'HIV-1 subtyp'] for pat in meta['id']]
+#    df.to_csv(path_or_buf = './K31_data/meta_patients.csv', index = False)
+        
+        
     for reg in ['gag', 'pol']:
         print reg
         j0jL = coords[reg]
@@ -184,97 +279,44 @@ if __name__=="__main__":
         TT, DD, pats, samples = K31_diversity(K31data, cutoff1, verbose = True)
         TTest, dtdx_t0 = TI.TI_from_diversity(DD, j0jL, cutoff1, rf = rframe)
         
-        meta = pd.read_csv('./K31_data/patients.csv')
-        meta_sample = pd.read_csv('./K31_data/sample_timeline_sequenced.csv')
-        meta_table = pd.read_excel('./K31_data/Suppl table 31 patients true TI 170629.xlsx', skiprows = 2)
         
         TTmax = np.max(TT)
         jj = np.where(ttk <= TTmax)        
-        if label_type in ['id', 'route', 'subtype']:     
-            pats_unique = list(set(pats))
-            f = (len(pats_unique)//len(cols)+1)
-            cc = cols*f
-            mm = [s for s in marks[:f] for j in xrange(len(cols))]
-            pairs = [[j for j, p in enumerate(pats) if p ==pat] for pat in pats_unique]
-        elif label_type in ['samples', 'templates', 'dilutions']:
-            f = (len(pats)//len(cols)+1)
-            cc = cols*f
-            mm = [s for s in marks[:f] for j in xrange(len(cols))]
-            
 
-            
-        
-        
-        fig, ax = plt.subplots(1,1, figsize = (1.3*H, 1.3*H))
-        ax.plot(ttk, ttk_est, linestyle = '', marker = '^', markersize = 0.8*ms, markerfacecolor = 'gray', label = 'training data')
-        if label_type in ['id', 'route', 'subtype']:
-#            ax.plot(TT, TTest, 'ob', markersize = 12, label = 'validation data')
-            for jp, p in enumerate(pairs):
-                if label_type == 'id':
-                    lab = pats_unique[jp]
-                elif label_type == 'route':
-                    lab = meta.at[np.where(meta['id'] == pats_unique[jp])[0][0], 'transmission route']
-                elif label_type == 'subtype':
-                    lab = meta_table.at[np.where(meta['id'] == pats_unique[jp])[0][0], 'HIV-1 subtyp']
-                else:
-                    lab = None
-                    
-                ax.plot(TT[p], TTest[p], ':' + mm[jp] + cc[jp], markersize = ms, label = lab)
-            if pairs_legend:
-                ax.legend(fontsize = 0.4*fs, loc = 0)
-                ax.set_title(label_type, fontsize = fs)
-        elif label_type in ['samples', 'templates', 'dilutions']:
-            for j, sample in enumerate(samples):
-                if label_type == 'samples':
-                    lab = sample
-                elif label_type == 'templates':
-                    lab = meta_sample.at[np.where(meta_sample['id'] == sample)[0][0], 'templates approx']
-                elif label_type == 'dilutions':
-                    lab = meta_sample.at[np.where(meta_sample['id'] == sample)[0][0], 'dilutions']
-                ax.plot(TT[j], TTest[j], mm[j] + cc[j], markersize = ms, label = lab)
-#            ax.plot(TT, TTest, 'ob', markersize = 12, label = 'validation data')
-            ax.legend(fontsize = 0.3*fs, loc = 0, ncol = 3)
-        else:
-            ax.plot(TT, TTest, 'ob', markersize = 12, label = 'validation data')
-        ax.plot(np.sort(ttk), np.sort(ttk), linestyle = '--', color = 'gray')
-        ax.plot(np.sort(ttk), 2.+ np.sort(ttk), linestyle = '--', color = 'gray')
-        ax.plot(np.sort(ttk), -2.+ np.sort(ttk), linestyle = '--', color = 'gray')
-        ax.set_xlabel('TI [years]', fontsize = fs)
-        ax.set_ylabel('ETI [years]', fontsize = fs)
-        ax.set_xlim([0, 10.])
-        ax.set_ylim([0, 10.])
-        ax.tick_params(labelsize = .8*fs)
-        fig.tight_layout()
-        plt.savefig(outdir_name + 'K31_{}_ETIvsTI_rf2_{}.pdf'.format(reg, label_type))
-        plt.close()
+        for label_type in ['id', 'route', 'subtype', 'samples', 'templates', 'dilutions']:
+            fig, ax = plt.subplots(1,1, figsize = (1.3*H, 1.3*H))
+            ax.plot(ttk, ttk_est, linestyle = '', marker = '^', markersize = 0.8*ms, markerfacecolor = 'gray', label = 'training data')
+            ax = K31_ETIvsTI_plot(ax, (TT, TTest, pats, samples), label_type)
+            ax.plot(np.sort(ttk), np.sort(ttk), linestyle = '--', color = 'gray')
+            ax.plot(np.sort(ttk), 2.+ np.sort(ttk), linestyle = '--', color = 'gray')
+            ax.plot(np.sort(ttk), -2.+ np.sort(ttk), linestyle = '--', color = 'gray')
+            ax.set_xlabel('TI [years]', fontsize = fs)
+            ax.set_ylabel('ETI [years]', fontsize = fs)
+            ax.set_xlim([0, 10.])
+            ax.set_ylim([0, 10.])
+            ax.tick_params(labelsize = .8*fs)
+            fig.tight_layout()
+            plt.savefig(outdir_name + 'K31_{}_ETIvsTI_rf2_{}_new.pdf'.format(reg, label_type))
+            plt.close()
 
 
-#        templates = [meta_sample.at[np.where(meta_sample['id'] == sample)[0][0], 'templates approx'] for j, sample in enumerate(samples)]
-#        templates = []
+#        fig, ax = plt.subplots(1,2, figsize = (2.6*H, 1.3*H))
 #        for j, sample in enumerate(samples):
 #            temp = meta_sample.at[np.where(meta_sample['id'] == sample)[0][0], 'templates approx']
 #            try:
-#                templates.append(float(temp))
+#                ax[0].semilogx(float(temp), TTest[j] - TT[j], mm[j] + cc[j], markersize = ms, label = sample)
+#                ax[1].semilogx(float(temp), np.abs(TTest[j] - TT[j]), mm[j] + cc[j], markersize = ms, label = sample)
 #            except:
-#                templates.append(None)
-#        
-        fig, ax = plt.subplots(1,2, figsize = (2.6*H, 1.3*H))
-        for j, sample in enumerate(samples):
-            temp = meta_sample.at[np.where(meta_sample['id'] == sample)[0][0], 'templates approx']
-            try:
-                ax[0].semilogx(float(temp), TTest[j] - TT[j], mm[j] + cc[j], markersize = ms, label = sample)
-                ax[1].semilogx(float(temp), np.abs(TTest[j] - TT[j]), mm[j] + cc[j], markersize = ms, label = sample)
-            except:
-                None
-        ax[0].legend(fontsize = 0.3*fs, loc = 0)
-        ax[0].set_ylabel('ETI - TI [years]', fontsize = fs)
-        ax[1].set_ylabel('|ETI - TI| [years]', fontsize = fs)
-        for j in xrange(2):        
-            ax[j].set_xlabel('# templates', fontsize = fs)
-            ax[j].tick_params(labelsize = .8*fs)
-        fig.tight_layout()
-        plt.savefig(outdir_name + 'K31_{}_error_vs_templates.pdf'.format(reg))
-        plt.close()
+#                None
+#        ax[0].legend(fontsize = 0.3*fs, loc = 0)
+#        ax[0].set_ylabel('ETI - TI [years]', fontsize = fs)
+#        ax[1].set_ylabel('|ETI - TI| [years]', fontsize = fs)
+#        for j in xrange(2):        
+#            ax[j].set_xlabel('# templates', fontsize = fs)
+#            ax[j].tick_params(labelsize = .8*fs)
+#        fig.tight_layout()
+#        plt.savefig(outdir_name + 'K31_{}_error_vs_templates.pdf'.format(reg))
+#        plt.close()
 
 
         dTT = TTest - TT
