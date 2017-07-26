@@ -13,6 +13,7 @@ import EDI_functions as EDI
 import TI_predictor as TI
 from datetime import datetime
 import seaborn as sns
+import pandas as pd
 sns.set(style = 'darkgrid', font = u'Verdana')
 
 
@@ -29,7 +30,7 @@ fs1 = 42
 H = 8
 
 cols = ['b', 'g','r','c', 'y', 'm']
-marks = ['o', 's', '^', 'd', '*', 'p', 'v', '<', '>', '1', '2', '3', '4', '*', 'h', '+', 'x']
+marks = ['o', 's', '^', 'd', '*', 'p', 'v', '<', '>', 'h', '1', '2', '3', '4', '*', '+', 'x']
 ms = 10
 
 def translate_measures(measure):
@@ -86,7 +87,7 @@ def loadK31(reg, filepath, fromHIV = False):
     return data
     
     
-def K31_diversity(data, cutoff, rf = rframe, fcr = 0.5):
+def K31_diversity(data, cutoff, rf = rframe, fcr = 0.5, verbose = False):
     TT = []
     DD = []
     pats = []
@@ -94,7 +95,8 @@ def K31_diversity(data, cutoff, rf = rframe, fcr = 0.5):
     for j, key in enumerate(data.keys()):
         (Tloc, af) = data[key]
         if np.mean(np.sum(af.mask, axis=0)>0) > fcr:
-            print 'Omitting {}'.format(key)
+            if verbose:
+                print 'Omitting {}'.format(key)
             continue
         af = af[:4,:]
         if rf is not None:
@@ -107,14 +109,46 @@ def K31_diversity(data, cutoff, rf = rframe, fcr = 0.5):
         pats.append(key[:j])
         samples.append(key[j+1:])
     return np.array(TT)/365.25, np.array(DD), pats, samples
-
-def prob_bins(bins, lamb):
-    Pbins = .5*np.abs(np.exp(-np.abs(bins[:-1])/lamb) - np.exp(-np.abs(bins[1:])/lamb))
-    j = np.where((bins[:-1] <0)*(bins[1:]>0))[0]
-    if j:
-        Pbins[j] = .5*(np.exp(bins[:-1][j]/lamb) + np.exp(-bins[1:][j]/lamb))
-    return Pbins
     
+
+def K31_ETIvsTI_plot(ax, K31results, label_type, show_legend = True):
+    (TT, TTest, pats, samples) = K31results
+    if label_type in ['id', 'route', 'subtype']:
+        meta = pd.read_csv('./K31_data/meta_patients.csv')
+        pats_unique = list(set(pats))
+        f = (len(pats_unique)//len(cols)+1)
+        cc = cols*f
+        mm = [s for s in marks[:f] for j in xrange(len(cols))]
+        pairs = [[j for j, p in enumerate(pats) if p ==pat] for pat in pats_unique]
+        for jp, p in enumerate(pairs):
+            if label_type == 'id':
+                lab = pats_unique[jp]
+            elif label_type == 'route':
+                lab = meta.at[np.where(meta['id'] == pats_unique[jp])[0][0], 'transmission route']
+            elif label_type == 'subtype':
+                lab = meta.at[np.where(meta['id'] == pats_unique[jp])[0][0], 'subtype']
+                
+            ax.plot(TT[p], TTest[p], ':' + mm[jp] + cc[jp], markersize = ms, label = lab)
+        if show_legend:
+            ax.legend(fontsize = 0.6*fs, loc = 0, ncol = 3)
+    elif label_type in ['samples', 'templates', 'dilutions']:
+        meta = pd.read_csv('./K31_data/meta_samples.csv')
+        f = (len(pats)//len(cols)+1)
+        cc = cols*f
+        mm = [s for s in marks[:f] for j in xrange(len(cols))]
+        for j, sample in enumerate(samples):
+            if label_type == 'samples':
+                lab = sample
+            elif label_type == 'templates':
+                lab = meta.at[np.where(meta['id'] == sample)[0][0], 'templates approx']
+            elif label_type == 'dilutions':
+                lab = meta.at[np.where(meta['id'] == sample)[0][0], 'dilutions']
+            ax.plot(TT[j], TTest[j], mm[j] + cc[j], markersize = ms, label = lab)
+        if show_legend:
+            ax.legend(fontsize = 0.5*fs, loc = 0, ncol = 3)
+    else:
+        ax.plot(TT, TTest, 'ob', markersize = 12, label = 'validation data')
+    return ax
          
 if __name__=="__main__":
     '''Predicting infection dates for the 31 additional patients'''
@@ -129,8 +163,7 @@ if __name__=="__main__":
     measure = 'diversity'
     meas = translate_measures(measure)
     cutoff1 = 0.002
-    bypairs = True #join points belonging to the same patient
-    pairs_legend = False #add patient codes to plots
+
     for reg in ['gag', 'pol']:
         print reg
         j0jL = TI.region(reg)
@@ -144,40 +177,45 @@ if __name__=="__main__":
         
         #Loading and processing the validation dataset data (31 patients)
         K31data = loadK31(reg, './K31_data/{}/'.format(reg), fromHIV = False)
-        TT, DD, pats, samples = K31_diversity(K31data, cutoff1)
-        TTest, dtdx_t0 = TI.TI_from_diversity(DD, reg, cutoff1, rf = rframe)
+        TT, DD, pats, samples = K31_diversity(K31data, cutoff1, verbose = True)
+        TTest, dtdx_t0 = TI.TI_from_diversity(DD, j0jL, cutoff1, rf = rframe)
+        
         
         TTmax = np.max(TT)
         jj = np.where(ttk <= TTmax)        
-        if bypairs:     
-            pats_unique = list(set(pats))
-            f = (len(pats_unique)//len(cols)+1)
-            cc = cols*f
-            mm = [s for s in marks[:f] for j in xrange(len(cols))]
-            pairs = [[j for j, p in enumerate(pats) if p ==pat] for pat in pats_unique]
         
-        
-        #Plot of predicted vs. "true" times since infection (ETI vs. TI) 
+        #ETI vs. TI plot
         fig, ax = plt.subplots(1,1, figsize = (H, H))
         ax.plot(ttk, ttk_est, linestyle = '', marker = '^', markersize = 0.8*ms, markerfacecolor = 'gray', label = 'training data')
-        if bypairs:
-            for jp, p in enumerate(pairs):
-                ax.plot(TT[p], TTest[p], ':' + mm[jp] + cc[jp], markersize = ms, label = pats_unique[jp])
-            if pairs_legend:
-                ax.legend(fontsize = 0.4*fs, loc = 0)
-        else:
-            ax.plot(TT, TTest, 'ob', markersize = 12, label = 'validation data')
-            ax.legend(fontsize = 0.8*fs, loc = 0)
+        ax = K31_ETIvsTI_plot(ax, (TT, TTest, pats, samples), 'id', show_legend = False)
         ax.plot(np.sort(ttk), np.sort(ttk), linestyle = '--', color = 'gray')
         ax.set_xlabel('TI [years]', fontsize = fs)
         ax.set_ylabel('ETI [years]', fontsize = fs)
+        ax.set_xlim([0, 10.])
+        ax.set_ylim([0, 10.])
         ax.tick_params(labelsize = .8*fs)
         fig.tight_layout()
         plt.savefig(outdir_name + 'K31_{}_ETIvsTI_rf2.pdf'.format(reg))
         plt.close()
+            
+        
+        #ETI vs. TI plots indicating subtype, transmission route, no of templates and dilutions
+        for label_type in ['route', 'subtype', 'templates', 'dilutions']:
+            fig, ax = plt.subplots(1,1, figsize = (2*H, H))
+            ax.plot(ttk, ttk_est, linestyle = '', marker = '^', markersize = 0.8*ms, markerfacecolor = 'gray', label = 'training data')
+            ax = K31_ETIvsTI_plot(ax, (TT, TTest, pats, samples), label_type)
+            ax.plot(np.sort(ttk), np.sort(ttk), linestyle = '--', color = 'gray')
+            ax.set_xlabel('TI [years]', fontsize = fs)
+            ax.set_ylabel('ETI [years]', fontsize = fs)
+            ax.set_xlim([0, 20.])
+            ax.set_ylim([0, 10.])
+            ax.tick_params(labelsize = .8*fs)
+            fig.tight_layout()
+            plt.savefig(outdir_name + 'K31_{}_ETIvsTI_rf2_{}.pdf'.format(reg, label_type))
+            plt.close()
 
 
-        #Plot distribution of absolute errors 
+        #Plot error histogram 
         dTT = TTest - TT
         dTTmin = np.min(dTT)//1
         dTTmax = np.max(dTT)//1 + 1.
@@ -211,6 +249,3 @@ if __name__=="__main__":
         fig.subplots_adjust(wspace = 0.1)
         plt.savefig(outdir_name + 'K31_{}_diversity.pdf'.format(reg))
         plt.close()
-        
-
-        
